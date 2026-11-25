@@ -160,6 +160,10 @@ macOS 14 이상과 Xcode 툴체인의 `swiftc`, 그리고 빌드 시점에 번�
    # 또는
    npm start
    ```
+5. **DMG로 설치(선택)**: `build/Margin.dmg`를 만들고, 열린 창에서 `Margin.app`을 `Applications`로 끌어 놓습니다.
+   ```bash
+   bash native/make-dmg.sh
+   ```
 
 ---
 
@@ -219,7 +223,7 @@ Node 테스트와 네이티브 바이너리 자체 점검 옵션을 통해 코�
 
 네이티브 Swift 소스와 빌드 스크립트, 문서, 레거시 참고 파일로 구성되어 있습니다.
 
-- `native/`: Swift 소스 파일(`Application`, `Studio`, `Editor`, `Search`, `Terminal`, `Workspace`, `Format`, `Review`, `Agent`, `Checks`, `Core`, `Sheets`)과 미리보기 리소스(`preview.html`, `preview.js`, `preview.css`), 빌드 및 실행 스크립트(`build.sh`, `run.sh`)가 위치합니다.
+- `native/`: Swift 소스 파일(`Application`, `Studio`, `Editor`, `Search`, `Terminal`, `Workspace`, `Format`, `Review`, `Agent`, `Checks`, `Core`, `Sheets`)과 미리보기 리소스(`preview.html`, `preview.js`, `preview.css`), 빌드, 실행, 패키징 스크립트(`build.sh`, `run.sh`, `make-dmg.sh`)가 위치합니다.
 - `bin/margin`: 명령줄 실행 스크립트입니다.
 - `docs/`: 요구사항 및 검증 문서(PRD, SRS, RTM, evidence)가 들어 있습니다.
 - `public/`, `server.mjs`, `ai.mjs`: 개발 참고용으로 보존된 레거시 웹 UI 파일입니다.
