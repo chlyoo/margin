@@ -156,7 +156,12 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
     let outline = NSOutlineView()
     let tabs = NSSegmentedControl(labels:["파일","변경 따라가기"],trackingMode:.selectOne,target:nil,action:nil)
     let fileArea = NSView(), reviewArea = NSView()
-    let fileTitle = marginLabel("왼쪽에서 파일을 고르세요.",size:12)
+    let fileTitle = marginLabel("",size:12)
+    /// Shown in the file area until a file is open: what to do next and the shortcuts that do it.
+    let emptyState = NSStackView()
+    private(set) var formatButton: NSButton!
+    private(set) var terminalToggle: NSButton!
+    private(set) var claudeToggle: NSButton!
     let markdownPane = MarginPane(kind:1)
     let codePane = CodePane()
     let stepsTable = ReviewTable()
@@ -250,12 +255,12 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         guard let content = window?.contentView else { return }
         let main = mainSplit; main.isVertical = true; main.dividerStyle = .thin
         status.lineBreakMode = .byTruncatingTail; status.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
-        let terminalToggle = marginButton("터미널  ⌃`",symbol:"terminal",target:self,action:#selector(showTerminal(_:)))
+        terminalToggle = marginButton("터미널  ⌃`",symbol:"terminal",target:self,action:#selector(showTerminal(_:)))
         terminalToggle.toolTip = "이 폴더에서 여는 실제 터미널을 아래에 열고 닫아요(vim, top 등 사용 가능)."
-        let claudeToggle = marginButton("Claude  ⌥⌘B",symbol:"sparkles",target:self,action:#selector(toggleClaude(_:)))
+        claudeToggle = marginButton("Claude  ⌥⌘B",symbol:"sparkles",target:self,action:#selector(toggleClaude(_:)))
         claudeToggle.toolTip = "Claude에게 일을 시키는 오른쪽 패널을 열고 닫아요."
-        for button in [terminalToggle,claudeToggle] { button.controlSize = .small; button.bezelStyle = .recessed }
-        let statusBar = NSStackView(views:[status,NSView(),terminalToggle,claudeToggle])
+        for button in [terminalToggle!,claudeToggle!] { button.controlSize = .small; button.bezelStyle = .recessed; button.setButtonType(.pushOnPushOff) }
+        let statusBar = NSStackView(views:[status,NSView(),terminalToggle!,claudeToggle!])
         statusBar.orientation = .horizontal; statusBar.spacing = 8; statusBar.edgeInsets = NSEdgeInsets(top:0,left:12,bottom:0,right:8)
         statusBar.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(statusBar)
         NSLayoutConstraint.activate([statusBar.leadingAnchor.constraint(equalTo:content.leadingAnchor),statusBar.trailingAnchor.constraint(equalTo:content.trailingAnchor),statusBar.bottomAnchor.constraint(equalTo:content.bottomAnchor),statusBar.heightAnchor.constraint(equalToConstant:26)])
@@ -271,9 +276,9 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         // Upper: tabs + file or review
         let upper = NSView()
         tabs.selectedSegment = 0; tabs.target = self; tabs.action = #selector(changedTab); tabs.segmentStyle = .texturedRounded
-        let formatButton = marginButton("코드 정리",symbol:"wand.and.stars",target:self,action:#selector(formatDocument(_:)))
+        formatButton = marginButton("코드 정리",symbol:"wand.and.stars",target:self,action:#selector(formatDocument(_:))); formatButton.isEnabled = false
         formatButton.toolTip = "열린 파일을 그 언어의 정리 도구(Python은 ruff 등)로 정리해요. ⌥⌘L"
-        let bar = NSStackView(views:[tabs,fileTitle,NSView(),formatButton])
+        let bar = NSStackView(views:[tabs,fileTitle,NSView(),formatButton!])
         bar.orientation = .horizontal; bar.spacing = 12; bar.edgeInsets = NSEdgeInsets(top:8,left:12,bottom:8,right:12)
         bar.translatesAutoresizingMaskIntoConstraints = false; upper.addSubview(bar)
         fileTitle.lineBreakMode = .byTruncatingMiddle; fileTitle.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
@@ -281,6 +286,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         fill(fileArea,in:upper,top:bar.bottomAnchor); fill(reviewArea,in:upper,top:bar.bottomAnchor)
         fill(markdownPane,in:fileArea); fill(codePane,in:fileArea)
         markdownPane.isHidden = true; codePane.isHidden = true
+        buildEmptyState()
         markdownPane.editor.delegate = self; codePane.editor.delegate = self
         markdownPane.onKindChanged = { [weak self] in self?.renderMarkdown() }
         markdownPane.onPreviewError = { [weak self] message in self?.setStatus("미리보기 오류 · " + message) }
@@ -345,8 +351,32 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         content.layoutSubtreeIfNeeded()
         main.setPosition(230,ofDividerAt:0); main.setPosition(main.bounds.width - claudeWidth,ofDividerAt:1); review.setPosition(270,ofDividerAt:0)
         if UserDefaults.standard.bool(forKey:"studio.sidebarHidden") { side.isHidden = true; main.adjustSubviews() }
-        if UserDefaults.standard.bool(forKey:"studio.claudeHidden") { panel.isHidden = true; main.adjustSubviews() }
+        // Panels come when called: Claude starts closed until the person opens it once with ⌥⌘B.
+        if UserDefaults.standard.object(forKey:"studio.claudeHidden") == nil || UserDefaults.standard.bool(forKey:"studio.claudeHidden") { panel.isHidden = true; main.adjustSubviews() }
+        syncToggles()
         main.setHoldingPriority(.defaultHigh,forSubviewAt:0); main.setHoldingPriority(.defaultHigh,forSubviewAt:2); right.setHoldingPriority(.defaultHigh,forSubviewAt:1); review.setHoldingPriority(.defaultHigh,forSubviewAt:0)
+    }
+
+    private func buildEmptyState() {
+        let title = marginLabel("왼쪽 목록에서 파일을 고르세요",size:17,color:.labelColor)
+        let grid = NSGridView(views:StudioWindowController.emptyShortcuts.map { key, what in
+            let keyLabel = marginLabel(key,size:13,color:.secondaryLabelColor); keyLabel.font = .monospacedSystemFont(ofSize:13,weight:.medium); keyLabel.alignment = .right
+            return [keyLabel,marginLabel(what,size:13,color:.secondaryLabelColor)]
+        })
+        grid.rowSpacing = 8; grid.columnSpacing = 16; grid.column(at:0).xPlacement = .trailing
+        emptyState.setViews([title,grid],in:.center)
+        emptyState.orientation = .vertical; emptyState.alignment = .centerX; emptyState.spacing = 20
+        emptyState.translatesAutoresizingMaskIntoConstraints = false; fileArea.addSubview(emptyState)
+        NSLayoutConstraint.activate([emptyState.centerXAnchor.constraint(equalTo:fileArea.centerXAnchor),emptyState.centerYAnchor.constraint(equalTo:fileArea.centerYAnchor,constant:-40)])
+    }
+    /// Only shortcuts the app already has; each borrowed from the tool it came from.
+    static let emptyShortcuts: [(String,String)] = [("⌘K ⌘B","파일 목록 표시/숨기기"),("⌘F","이 파일에서 찾기"),("⇧⌘F","폴더 전체에서 찾기"),("⌃`","터미널"),("⌥⌘B","Claude 패널"),("⌥⌘L","코드 정리")]
+    /// The status bar buttons show which panel is open, and the file controls only work with a file open.
+    func syncToggles() {
+        terminalToggle.state = terminal.isHidden ? .off : .on
+        claudeToggle.state = claudePanel.isHidden ? .off : .on
+        formatButton.isEnabled = openPath != nil
+        emptyState.isHidden = openPath != nil
     }
 
     override func showWindow(_ sender: Any?) {
@@ -380,6 +410,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
     /// ⌥⌘B, as VS Code's secondary side bar: opens the Claude panel on the instruction line, or closes it.
     @objc func toggleClaude(_ sender: Any?) {
         if claudeHidden { setClaude(hidden:false); window?.makeFirstResponder(input) } else { setClaude(hidden:true) }
+        syncToggles()
     }
     func setClaude(hidden: Bool) {
         guard claudePanel.isHidden != hidden else { return }
@@ -391,6 +422,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
             claudePanel.isHidden = false; mainSplit.adjustSubviews(); placeClaude()
         }
         UserDefaults.standard.set(hidden,forKey:"studio.claudeHidden")
+        syncToggles()
     }
     private func placeClaude() {
         guard !claudeHidden else { return }
@@ -402,6 +434,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         if terminal.isHidden { setTerminal(hidden:false) }
         else if window?.firstResponder === terminal { setTerminal(hidden:true) }
         else { window?.makeFirstResponder(terminal) }
+        syncToggles()
     }
     func setTerminal(hidden: Bool) {
         guard terminal.isHidden != hidden else { return }
@@ -416,6 +449,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
             if !terminal.isRunning, terminal.exitStatus == nil { terminal.start() }
             window?.makeFirstResponder(terminal)
         }
+        syncToggles()
     }
     private func focusMain() {
         if !reviewArea.isHidden { window?.makeFirstResponder(stepsTable) }
@@ -532,6 +566,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         } else { codePane.load(decoded.text,path:path) }
         loading = false
         fileTitle.stringValue = path
+        syncToggles()
         if reveal { tabs.selectedSegment = 0; showTab() }
         return true
     }

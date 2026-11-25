@@ -567,9 +567,9 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Implements: FR-IDE-1, FR-IDE-2, FR-IDE-3, FR-IDE-4, FR-IDE-5, FR-IDE-6, FR-IDE-10, FR-IDE-11, FR-IDE-12, NFR-IDE-1
+    /// Implements: FR-IDE-1, FR-IDE-2, FR-IDE-3, FR-IDE-4, FR-IDE-5, FR-IDE-6, FR-IDE-10, FR-IDE-11, FR-IDE-12, FR-IDE-13, NFR-IDE-1
     func runStudioChecks(root: URL) {
-        let names = ["launch_words_that_are_not_files_raise_no_alert","folder_path_opens_one_workspace","workspace_tree_hides_ignored_and_secret","code_view_opens_and_saves","markdown_opens_in_rendered_pane","agent_steps_replayed_in_order","accept_advances_reject_restores","conflicting_reject_refuses","claude_panel_toggles_with_opt_cmd_b","agent_launch_is_explicit","reload_keeps_tab_and_focus","step_selection_follows_file","tab_in_empty_input_accepts","same_step_redraw_keeps_reading_position","part_reject_undoes_one_block","format_command_is_one_undoable_saved_edit","terminal_panel_toggles_with_ctrl_backtick","new_session_shows_itself","terminal_keys_reach_the_program","terminal_stop_ends_the_shell","find_menu_opens_find_bar","find_in_files_options_and_reveal","sidebar_toggles_with_cmd_k_b","claude_log_reads_as_conversation"]
+        let names = ["launch_words_that_are_not_files_raise_no_alert","folder_path_opens_one_workspace","workspace_tree_hides_ignored_and_secret","code_view_opens_and_saves","markdown_opens_in_rendered_pane","agent_steps_replayed_in_order","accept_advances_reject_restores","conflicting_reject_refuses","claude_panel_toggles_with_opt_cmd_b","agent_launch_is_explicit","reload_keeps_tab_and_focus","step_selection_follows_file","tab_in_empty_input_accepts","same_step_redraw_keeps_reading_position","part_reject_undoes_one_block","format_command_is_one_undoable_saved_edit","terminal_panel_toggles_with_ctrl_backtick","new_session_shows_itself","terminal_keys_reach_the_program","terminal_stop_ends_the_shell","find_menu_opens_find_bar","find_in_files_options_and_reveal","sidebar_toggles_with_cmd_k_b","claude_log_reads_as_conversation","empty_area_shows_next_step_and_shortcuts","claude_panel_starts_closed","panel_buttons_show_open_state"]
         for name in names { regression[name] = false }
         do {
             let space = root.appendingPathComponent("studio")
@@ -583,13 +583,24 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
             try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
             open(folder); open(folder)
             regression["folder_path_opens_one_workspace"] = studios.filter { $0.root == folder.standardizedFileURL.resolvingSymlinksInPath() }.count == 1 && documents.count == documentsBefore
+            UserDefaults.standard.removeObject(forKey:"studio.claudeHidden")
             openWorkspace(space)
             guard let studio = studios.last else { return }
             checkStudio = studio
             studio.window?.contentView?.layoutSubtreeIfNeeded()
+            regression["claude_panel_starts_closed"] = studio.claudeHidden && studio.claudeToggle.state == .off
+            let emptyFirst = !studio.emptyState.isHidden && !studio.formatButton.isEnabled && studio.fileTitle.stringValue.isEmpty
+            let menuItems = NSApp.mainMenu?.items.compactMap(\.submenu).flatMap(\.items) ?? []
+            func glyphs(_ item: NSMenuItem) -> String {
+                let mask = item.keyEquivalentModifierMask
+                return (mask.contains(.control) ? "⌃" : "") + (mask.contains(.option) ? "⌥" : "") + (mask.contains(.shift) ? "⇧" : "") + (mask.contains(.command) ? "⌘" : "") + item.keyEquivalent.uppercased()
+            }
+            let shortcutsReal = StudioWindowController.emptyShortcuts.allSatisfy { key, _ in menuItems.contains { !$0.keyEquivalent.isEmpty && glyphs($0) == key } || menuItems.contains { $0.title.contains("(" + key + ")") } }
             let top = studio.nodes.map(\.name)
             regression["workspace_tree_hides_ignored_and_secret"] = top.contains("calc.py") && top.contains("README.md") && top.contains("sub") && !top.contains("node_modules") && !top.contains(".env") && studio.outline.numberOfRows == top.count && !studio.openFile(".env")
             let opened = studio.openFile("sub/tool.swift")
+            regression["empty_area_shows_next_step_and_shortcuts"] = emptyFirst && shortcutsReal && studio.emptyState.isHidden && studio.formatButton.isEnabled
+            if regression["empty_area_shows_next_step_and_shortcuts"] != true { fputs("Empty state: first=\(emptyFirst) shortcuts=\(shortcutsReal) hiddenAfter=\(studio.emptyState.isHidden)\n",stderr) }
             let coloured = (studio.codePane.editor.textStorage?.attribute(.foregroundColor,at:0,effectiveRange:nil) as? NSColor) == NSColor.systemPink
             studio.codePane.editor.setSelectedRange(NSRange(location:(studio.codePane.editor.string as NSString).length,length:0))
             studio.codePane.editor.insertText("let y = 2\n",replacementRange:studio.codePane.editor.selectedRange())
@@ -682,8 +693,10 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
             studio.setClaude(hidden:false)
             studio.showTerminal(nil)
             let terminalOpened = !studio.terminal.isHidden && studio.terminal.isRunning && studio.window?.firstResponder === studio.terminal && !studio.claudeHidden
+            let terminalButtonOn = studio.terminalToggle.state == .on && studio.claudeToggle.state == .on
             studio.showTerminal(nil)
             let terminalClosed = studio.terminal.isHidden && studio.terminal.isRunning && studio.window?.firstResponder !== studio.terminal
+            let terminalButtonOff = studio.terminalToggle.state == .off
             studio.setClaude(hidden:true)
             studio.newSession()
             regression["new_session_shows_itself"] = !studio.claudeHidden && studio.terminal.isRunning && studio.logText.contains("새 세션") && studio.recorder.steps.isEmpty && studio.recorder.sessionID == nil
@@ -752,7 +765,9 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
             studio.setClaude(hidden:false); studio.window?.makeFirstResponder(studio.input)
             studio.toggleClaude(nil)
             let claudeClosed = studio.claudeHidden && UserDefaults.standard.bool(forKey:"studio.claudeHidden") && !((studio.window?.firstResponder as? NSView)?.isDescendant(of:studio.claudePanel) ?? false)
+            let claudeButtonOff = studio.claudeToggle.state == .off
             studio.toggleClaude(nil)
+            regression["panel_buttons_show_open_state"] = terminalButtonOn && terminalButtonOff && claudeButtonOff && studio.claudeToggle.state == .on
             let claudeOpened = !studio.claudeHidden && (studio.window?.firstResponder as? NSTextView)?.delegate === studio.input && studio.claudePanel.frame.width > 100
             regression["claude_panel_toggles_with_opt_cmd_b"] = claudeKey && terminalKey && claudeClosed && claudeOpened
             if regression["claude_panel_toggles_with_opt_cmd_b"] != true { fputs("Claude panel: keys=\(claudeKey)/\(terminalKey) closed=\(claudeClosed) opened=\(claudeOpened) width=\(studio.claudePanel.frame.width)\n",stderr) }
@@ -871,7 +886,7 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
                         document.source = current; try document.flush(); controller.refreshSources()
                     }
                 } catch { historyOK = false; restoreOK = false }
-                let pass = error == nil && value["heading"] as? String == "Native check" && value["table"] as? Bool == true && value["tasks"] as? Bool == true && value["code"] as? Bool == true && value["safe"] as? Bool == true && controller.panes.count == 2 && sourceMode && previewMode && independent && tabApplied && canUndo && undoWorked && autosave && originalSaved && layout && historyOK && restoreOK && self.regression.count == 42 && self.regression.values.allSatisfy { $0 }
+                let pass = error == nil && value["heading"] as? String == "Native check" && value["table"] as? Bool == true && value["tasks"] as? Bool == true && value["code"] as? Bool == true && value["safe"] as? Bool == true && controller.panes.count == 2 && sourceMode && previewMode && independent && tabApplied && canUndo && undoWorked && autosave && originalSaved && layout && historyOK && restoreOK && self.regression.count == 45 && self.regression.values.allSatisfy { $0 }
                 let receipt: [String:Any] = ["pass":pass,"native_editor_class":String(describing:type(of:controller.panes[0].editor)),"split_panels":controller.panes.count,"source_mode":sourceMode,"preview_mode":previewMode,"independent_panes":independent,"native_tab_apply":tabApplied,"native_undo":undoWorked,"durable_autosave":autosave,"original_file_autosave":originalSaved,"history_panel":historyOK,"native_restore":restoreOK,"layout":layout,"pane_frames":controller.panes.map { NSStringFromRect($0.frame) },"save_status":controller.status.stringValue,"preview":value,"regressions":self.regression,"bundle":Bundle.main.bundleURL.path,"localhost_server_required":false]
                 func finish() {
                     print(String(data:try! JSONSerialization.data(withJSONObject:receipt,options:[.prettyPrinted,.sortedKeys]),encoding:.utf8)!)

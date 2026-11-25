@@ -75,12 +75,13 @@ flowchart TD
 - 파일 트리는 빌드 폴더, `.env`나 키 같은 비밀 유사 파일, 1 MiB를 초과하는 파일을 자동으로 숨깁니다.
 - Markdown 파일은 렌더링 창에서 열리고, 그 외의 텍스트 파일은 줄 번호와 구문 색상이 적용된 코드 뷰에서 열립니다.
 - 외부 변경 보호가 적용된 자동 저장이 동작하며, `⌘K ⌘B`로 파일 트리 사이드바를 여닫을 수 있습니다. 사이드바 상태는 유지됩니다.
+- 파일을 열기 전에는 가운데 영역에 다음에 할 일과 단축키 목록이 보이고, 하단 상태 바의 `터미널`·`Claude` 버튼은 패널이 열려 있는지 표시합니다.
 
 ### Claude의 파일 변경을 단계별로 검토하고 반영
 
 지시사항을 입력하면 Claude Code가 백그라운드에서 작업하고, 사용자는 변경 내역을 한 단계씩 수락하거나 거절할 수 있습니다.
 
-- 오른쪽 Claude 패널(`⌥⌘B`로 열고 닫음)에 지시사항을 입력하면 폴더 안에서 Claude Code가 `--permission-mode acceptEdits` 옵션으로 헤드리스 실행됩니다.
+- 오른쪽 Claude 패널은 닫힌 상태로 시작합니다. `⌥⌘B`로 열고 닫으며, 패널에 지시사항을 입력하면 폴더 안에서 Claude Code가 `--permission-mode acceptEdits` 옵션으로 헤드리스 실행됩니다.
 - 각 파일 변경 사항은 Claude의 변경 이유와 줄 단위 diff가 포함된 하나의 단계가 됩니다.
 - `변경 따라가기` 탭에서 `↑`/`↓`로 이동하고, `Tab`으로 수락하며, `Delete`로 거절할 수 있습니다. 거절 시 해당 단계의 변경만 복원하며 이후에 다시 변경된 파일은 복원을 거부합니다. `⇧⌫`를 누르면 한 부분만 거절합니다.
 - 세션은 워크스페이스별로 유지됩니다.
@@ -227,6 +228,6 @@ Node 테스트와 네이티브 바이너리 자체 점검 옵션을 통해 코�
 
 - `native/`: Swift 소스 파일(`Application`, `Studio`, `Editor`, `Search`, `Terminal`, `Workspace`, `Format`, `Review`, `Agent`, `Checks`, `Core`, `Sheets`)과 미리보기 리소스(`preview.html`, `preview.js`, `preview.css`), 빌드, 실행, 패키징 스크립트(`build.sh`, `run.sh`, `make-dmg.sh`)가 위치합니다.
 - `bin/margin`: 명령줄 실행 스크립트입니다.
-- `docs/`: 요구사항 및 검증 문서(PRD, SRS, RTM, evidence)가 들어 있습니다.
+- `docs/`: 요구사항 및 검증 문서(PRD, SRS, RTM, evidence)와 화면을 바꿀 때 따르는 [디자인 원칙](docs/design.md)이 들어 있습니다.
 - `public/`, `server.mjs`, `ai.mjs`: 개발 참고용으로 보존된 레거시 웹 UI 파일입니다.
 - `test/`: 테스트 코드가 위치합니다.
