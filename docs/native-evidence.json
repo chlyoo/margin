@@ -1,0 +1,215 @@
+{
+  "verifiedAt": "2026-11-20T04:36:54Z",
+  "status": "handoff-incomplete-qualification",
+  "surface": "native-macOS-AppKit",
+  "core": {
+    "pass": true,
+    "count": 66,
+    "command": "bash native/build.sh --check"
+  },
+  "ui": {
+    "pass": true,
+    "regressions": 38,
+    "command": "build/Margin.app/Contents/MacOS/Margin --ui-check --state-json"
+  },
+  "quit": {
+    "pass": true,
+    "command": "build/Margin.app/Contents/MacOS/Margin --quit-check"
+  },
+  "runtimeState": {
+    "ai_keys": "Keychain; never in version files",
+    "app": "Margin",
+    "autosave_debounce_ms": 1000,
+    "bundle": "build/Margin.app",
+    "documents": [
+      {
+        "version_count": 1
+      }
+    ],
+    "executable": "build/Margin.app/Contents/MacOS/Margin",
+    "history": "immutable snapshots; restore appends",
+    "localhost_server_required": false,
+    "storage": "~/Library/Application Support/com.peterlyoo.Margin/Documents",
+    "surface": "native-AppKit"
+  },
+  "mutationCheck": {
+    "restore_then_undo_safe": "mutant without undo reset aborted with NSRangeException in the undo step",
+    "H1_H3_H4_individual_mutants": "not-run"
+  },
+  "interactiveAppLaunch": {
+    "status": "run",
+    "observed": [
+      "open build/Margin.app started the bundle executable",
+      "window 1220x820 on screen with source and rendered panes",
+      "second launch showed status '로컬 자동저장본을 복구했어요.'",
+      "split panes equal after showWindow fix"
+    ],
+    "not_observed": [
+      "real pointer/keyboard editing in the window, including preview block editing"
+    ]
+  },
+  "liveAI": "not-run",
+  "realKeychainWrite": "not-run",
+  "finalRivalReview": "docs/.findings/native-final.md; verdict amend (minor); H1-H4 resolved",
+  "binarySHA256": "e70c2f9695cd91dfb6d07f6c136f95f98c2674cc21d9657514ccfad706bc83dd",
+  "bundleSourceManifestSHA256": "adf4380b43630fc098daad6be901573ae08550d2acb409a2d6d6f25b6d845286",
+  "sourceSHA256": {
+    "native/Agent.swift": "0363766ed80b348b75b78057cdf4788ebaaede0b0c714af7ceabe527ad993abf",
+    "native/Application.swift": "77f99baf963c6b2ecd50a33dfaf03c62248660d7e351486cafcaba17f44213e2",
+    "native/Checks.swift": "d0ab72162eb29afaaef5a68dddd6fd21570e734654c4cceec4d46e4a6d807e8a",
+    "native/Core.swift": "433f60f69829385d02fa0f34dcc897c360cdc9585925aea24edf5f57cf2d6b68",
+    "native/Editor.swift": "35762b4c8b32e5d800f0c2c794650a19f856e6c271283a5b8699b164f0c1cb5a",
+    "native/Review.swift": "0fff439892010ac682fc5ab5233a7580dc4bcd0852d9f6222cb136e4cd504d0b",
+    "native/Sheets.swift": "f61cc7d09c2c7a0ff5f5650faded79edd9f7374c86db0a83b489886cef3089e1",
+    "native/Studio.swift": "8fc44a03925c231492fba5a115b22ef3dc260224c5b8e3dd8f42cf51cbaedc43",
+    "native/Workspace.swift": "a756eb38cefd75e0fcf86fc1236b405e39c2bf31a58dadcfd98ba405083b43f8",
+    "native/preview.css": "d3ca6cbafbaae1bb28266ab35c51bd3c751d9684b3748e2df7bcb00817259c5f",
+    "native/preview.html": "97b13bf08ef91edb616b98700fd95c057dd4b6be50115d17258d60688a06d137",
+    "native/preview.js": "1f8ec5c68a0609433568b5301e97ec10e0462b1471da4445cfd2f35e716fa62d",
+    "bin/margin": "4aa2d0a1870eaf9d1dd9cfbf3a7276f600df601a382beb522d11af71173da278",
+    "native/Format.swift": "6921b1de95f56a289c8497ed1eb0eb8c22557cafaf769c376417de57745e1df8",
+    "native/Terminal.swift": "64f3ce1972a4d185572baa72e6cb2fb23603f5873deadfbc24116219b04715d9"
+  },
+  "nodeRegression": {
+    "pass": 17,
+    "fail": 0,
+    "scope": "superseded web implementation only"
+  },
+  "review": "docs/.findings/native-final.md",
+  "previewEditing": {
+    "mode": "WYSIWYG contenteditable; changed blocks serialized to Markdown, untouched blocks keep exact source",
+    "headless": "run",
+    "realWindowInput": "not-run"
+  },
+  "appIcon": {
+    "source": "native/icon.svg",
+    "generated": "native/Margin.icns via native/make-icon.sh",
+    "bundle": "Contents/Resources/Margin.icns, CFBundleIconFile=Margin"
+  },
+  "richPaste": {
+    "preview": "clipboard text/html converted to Markdown and inserted as rendered content",
+    "source": "MarginTextView.paste converts text/html to Markdown text",
+    "allCodePaste": "kept as plain text",
+    "headless": "run",
+    "realClipboardFromGoogleDocs": "not-run"
+  },
+  "tags": {
+    "syntax": "#name after whitespace or line start; digits-only excluded",
+    "rendering": "chip in rendered pane only",
+    "headless": "run"
+  },
+  "lineBreak": {
+    "rendering": "marked breaks:true; one newline is a visible line break, a blank line starts a paragraph",
+    "preview": "Shift+Enter inserts <br>, serialized as a plain newline",
+    "headless": "run"
+  },
+  "formatToolbar": {
+    "commands": [
+      "p",
+      "h1",
+      "h2",
+      "h3",
+      "bold",
+      "italic",
+      "strike",
+      "code",
+      "bullet",
+      "number",
+      "task",
+      "quote",
+      "codeblock",
+      "link",
+      "tag",
+      "rule"
+    ],
+    "headless": "italic, h2, tag and URL-paste link run through marginFormat/paste in --ui-check",
+    "realWindowClicks": "not-run; toolbar layout observed in a window capture"
+  },
+  "links": {
+    "bubble": "address with open/edit/remove when the caret is in a link",
+    "shortcuts": "Cmd+K, Cmd+click opens",
+    "autoLink": "URL followed by space; URL pasted over a selection",
+    "headless": "URL paste over selection run; bubble and autoLink not-run"
+  },
+  "modelPicker": {
+    "control": "NSPopUpButton",
+    "gatewayList": "https://ai-gateway.vercel.sh/v1/models fetched when the sheet opens; built-in suggestions otherwise",
+    "headless": "run"
+  },
+  "autoReviewGate": {
+    "rule": "checkbox stays off without an API key; clicking opens AI settings",
+    "headless": "state rule run; click path not-run"
+  },
+  "uiCopy": {
+    "reviewedBy": "google/gemini-4-argon via bin/gemini-write",
+    "strings": 119,
+    "changed": 80
+  },
+  "uiCheckFlake": {
+    "rootCause": "window creation read the API key from the Keychain; after each ad-hoc rebuild macOS raised an access prompt and blocked the main thread",
+    "evidence": "sample of the stuck process showed the main thread inside MarginWindowController.init with SecurityAgent running",
+    "fix": "CredentialStore.exists reads attributes only; the secret is read off the main thread at review time; headless checks set CredentialStore.keychainEnabled=false",
+    "mitigation": "40s watchdog prints the stage and exits 1"
+  },
+  "previewDiagnostic": {
+    "flag": "--preview-json <file>",
+    "realDocument": {
+      "blocks": 9,
+      "locked": 0,
+      "lineBreaks": 9,
+      "tags": 1
+    }
+  },
+  "previewErrors": "script exceptions are written to stderr and shown in the status bar",
+  "knownIssue": "ad-hoc signing changes on every rebuild, so the first AI review after a rebuild can raise a Keychain access prompt",
+  "workspaceIDE": {
+    "milestone": "docs/milestone-ide.md",
+    "sources": [
+      "native/Workspace.swift",
+      "native/Agent.swift",
+      "native/Studio.swift"
+    ],
+    "fixture": "native/fixtures/agent-stream.jsonl (reduced from one real `claude -p --output-format stream-json` run, v2.1.327)",
+    "coreChecksAdded": 13,
+    "uiRegressionsAdded": [
+      "workspace_tree_hides_ignored_and_secret",
+      "code_view_opens_and_saves",
+      "markdown_opens_in_rendered_pane",
+      "agent_steps_replayed_in_order",
+      "accept_advances_reject_restores",
+      "conflicting_reject_refuses",
+      "terminal_runs_command",
+      "agent_launch_is_explicit"
+    ],
+    "liveRun": {
+      "command": "Margin --workspace-run <folder> <instruction> --snapshot <png>",
+      "result": "finished true, 3 steps (src/calc.py, src/calc.py, README.md), each with stated reasoning, 234 s",
+      "claudeCalls": 5
+    },
+    "notVerified": [
+      "real pointer and keyboard use of the workspace window, including the Tab key in the review pane",
+      "workspaces above the 5000-file cap",
+      "Claude run from a Finder-launched app"
+    ],
+    "liveResumeAndStop": {
+      "command": "Margin --workspace-run <folder> <instruction> --then <instruction> --stop-check <instruction>",
+      "result": "resumed_same_session true (second instruction referred to \"the function you just fixed\" and edited add); stopped_within_6s true"
+    },
+    "scan": {
+      "command": "Margin --scan-json <folder>",
+      "ai-system": {
+        "files": 472,
+        "first_snapshot_ms": 372,
+        "repeat_snapshot_ms": 207
+      },
+      "trano": {
+        "files": 937,
+        "first_snapshot_ms": 393,
+        "repeat_snapshot_ms": 247
+      },
+      "note": "runs on the main thread"
+    },
+    "realWindow": "window capture of the relaunched app shows tabs, buttons and input rendered; no pointer or keyboard input was sent",
+    "cleanEnvironmentShell": "env -i HOME=$HOME /bin/zsh -lic: claude found at ~/.local/bin/claude, CLAUDE_CONFIG_DIR empty"
+  }
+}

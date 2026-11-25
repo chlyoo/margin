@@ -1,0 +1,10 @@
+{
+  "handoff": "HANDOFF.md",
+  "handoffSHA256": "3af93e4360fb0f96dbd9896f74068de2325ddd9c711c7791769ff86eeaa56072",
+  "nativeEvidence": "docs/native-evidence.json",
+  "binarySHA256": "79c0060cfc3f8d25443fe0a476ffe26ae79e065ee7ecaabb3d05249e2f1df89c",
+  "status": "handoff-incomplete-qualification",
+  "gitCommit": "not-created",
+  "nativeQualification": "incomplete",
+  "next": "user confirms real-window editing; live AI and Keychain with a real key; decide on remaining review items in docs/.findings/native-final.md; workspace IDE: user confirms real-window review keys and a Finder-launched Claude run (docs/milestone-ide.md)"
+}

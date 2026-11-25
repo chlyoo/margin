@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Margin · Markdown Studio</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23264238'/%3E%3Cpath d='M8 23V9l8 9 8-9v14' fill='none' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/vendor/prism.css">
+  <link rel="stylesheet" href="/style.css">
+  <script defer src="/vendor/prism.js" data-manual></script>
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="Margin 홈"><span class="brand-mark">M<span>↘</span></span><span>margin<span class="brand-sub">MARKDOWN STUDIO</span></span></a>
+    <div class="document-meta"><span class="file-icon">▤</span><input id="filename" aria-label="파일 이름" value="Untitled.md" spellcheck="false"><span id="save-state" class="save-state">로컬 초안</span></div>
+    <div class="file-actions">
+      <button id="open" class="quiet" title="파일 열기 (⌘O)"><span aria-hidden="true">↥</span> 열기</button>
+      <button id="save" class="solid" title="파일 저장 (⌘S)"><span aria-hidden="true">↓</span> 저장</button>
+      <button id="settings-open" class="icon-button" aria-label="연결 설정" title="연결 설정">⚙</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="format-tools" aria-label="Markdown 서식">
+      <button data-format="heading" title="제목" aria-label="제목">H<span class="sub">1</span></button>
+      <button data-format="bold" title="굵게" aria-label="굵게"><b>B</b></button>
+      <button data-format="italic" title="기울임" aria-label="기울임"><i>I</i></button>
+      <span class="tool-separator"></span>
+      <button data-format="link" title="링크" aria-label="링크">↗</button>
+      <button data-format="code" title="코드" aria-label="코드">〈〉</button>
+      <button data-format="list" title="목록" aria-label="목록">☷</button>
+      <button data-format="quote" title="인용" aria-label="인용">❞</button>
+    </div>
+    <div class="view-switch" aria-label="화면 모드">
+      <button data-mode="source" aria-pressed="false">소스</button>
+      <button data-mode="split" aria-pressed="true"><span aria-hidden="true">◫</span> 분할</button>
+      <button data-mode="preview" aria-pressed="false">미리보기</button>
+    </div>
+    <div class="view-options"><label title="스크롤 위치 동기화"><input type="checkbox" id="sync-scroll" checked> 스크롤 연결</label><button id="theme" class="icon-button" title="테마 전환" aria-label="테마 전환">◐</button></div>
+  </div>
+
+  <main id="workspace" data-mode="split" style="--split:50%">
+    <section class="pane" id="pane-left" aria-label="왼쪽 문서 패널">
+      <div class="pane-heading"><div class="pane-tabs"><button data-pane="left" data-kind="source" aria-pressed="true">소스</button><button data-pane="left" data-kind="preview" aria-pressed="false">미리보기</button></div><span class="pane-caption" id="caption-left">MARKDOWN</span></div>
+      <div class="source-wrap" id="wrap-left"><div class="line-numbers" id="lines-left" aria-hidden="true"></div><textarea id="source-left" class="source" aria-label="왼쪽 Markdown 소스" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea></div>
+      <div class="preview-scroll" id="scroll-left" hidden><article id="preview-left" class="markdown"></article></div>
+    </section>
+    <div id="separator" role="separator" aria-label="분할 너비" aria-orientation="vertical" aria-valuemin="25" aria-valuemax="75" aria-valuenow="50" tabindex="0"><span></span></div>
+    <section class="pane" id="pane-right" aria-label="오른쪽 문서 패널">
+      <div class="pane-heading"><div class="pane-tabs"><button data-pane="right" data-kind="source" aria-pressed="false">소스</button><button data-pane="right" data-kind="preview" aria-pressed="true">미리보기</button></div><span class="pane-caption" id="caption-right">LIVE PREVIEW <span class="live-dot"></span></span></div>
+      <div class="source-wrap" id="wrap-right" hidden><div class="line-numbers" id="lines-right" aria-hidden="true"></div><textarea id="source-right" class="source" aria-label="오른쪽 Markdown 소스" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea></div>
+      <div class="preview-scroll" id="scroll-right"><article id="preview-right" class="markdown"></article></div>
+    </section>
+  </main>
+
+  <section id="suggestion" class="suggestion" aria-label="AI 교정 제안" aria-live="polite" hidden>
+    <div class="suggestion-header"><span class="spark">✦</span><strong id="suggestion-title">문장 검토</strong><span id="suggestion-reason"></span><button id="reject" class="icon-button" aria-label="제안 거절" title="거절 (Esc)">×</button></div>
+    <div class="suggestion-diff"><div class="diff-before"><span>원문</span><p id="original"></p></div><div class="diff-after"><span>제안</span><p id="replacement"></p></div></div>
+    <div id="fact-checks" class="fact-checks" hidden></div>
+    <div class="suggestion-footer"><span>AI 제안 · 사실 수정은 근거를 확인해 주세요.</span><button id="accept" class="solid">제안 적용 <kbd>Tab</kbd></button></div>
+  </section>
+  <div id="source-ghost" class="source-ghost" aria-hidden="true" hidden><span>✦</span><span id="ghost-text"></span><kbd>Tab</kbd></div>
+
+  <footer class="statusbar">
+    <div class="document-stats"><span id="word-count"></span><span id="char-count"></span><span class="status-divider"></span><span id="cursor-position">줄 1, 열 1</span><span class="encoding">UTF-8</span></div>
+    <div class="copilot-controls"><button id="provider-status" title="AI 연결 설정"><span class="connection-dot"></span><span id="provider-label">AI 연결</span></button><label class="auto-label"><input id="auto-correct" type="checkbox"><span class="toggle"></span>자동 제안</label><button id="suggest" class="suggest-button"><span class="spark">✦</span> 문단 검토</button></div>
+  </footer>
+
+  <div id="toast" role="status" hidden></div>
+  <div id="drop-overlay" hidden><span>↓</span>Markdown 파일을 놓아 주세요.</div>
+  <input id="file-input" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" hidden>
+
+  <dialog id="settings">
+    <form method="dialog" class="settings-form">
+      <div class="dialog-title"><h2>AI 연결</h2><button class="icon-button" aria-label="설정 닫기">×</button></div>
+      <label for="provider">제공자</label><select id="provider"><option value="gateway">Vercel AI Gateway</option><option value="claude">Claude API</option></select>
+      <label for="model">모델</label><input id="model" spellcheck="false" autocomplete="off">
+      <p id="connection-state"></p>
+      <p class="connection-note">API 키는 앱 폴더의 <code>.env</code>에 설정하고 서버를 다시 시작해 주세요.</p>
+      <pre id="env-help"></pre>
+      <p class="privacy-note">교정을 요청하면 현재 문단이 선택한 제공자로 전송돼요.</p>
+      <hr>
+      <label class="image-option"><input type="checkbox" id="fact-check" checked>웹 근거로 사실 확인</label>
+      <label class="image-option"><input type="checkbox" id="remote-images">외부 이미지 표시 허용</label>
+      <div class="dialog-actions"><button class="solid" value="done">완료</button></div>
+    </form>
+  </dialog>
+</body>
+</html>

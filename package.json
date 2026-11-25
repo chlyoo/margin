@@ -1,0 +1,18 @@
+{
+  "name": "markdown-studio",
+  "private": true,
+  "type": "module",
+  "engines": {"node": ">=22.9"},
+  "scripts": {
+    "start": "bash native/run.sh",
+    "build:native": "bash native/build.sh",
+    "debug:web": "node --env-file-if-exists=.env server.mjs",
+    "test": "node --test test/*.test.mjs && bash native/build.sh --check",
+    "test:native": "bash native/build.sh --check && build/Margin.app/Contents/MacOS/Margin --ui-check --state-json && build/Margin.app/Contents/MacOS/Margin --quit-check"
+  },
+  "dependencies": {
+    "dompurify": "3.4.17",
+    "marked": "18.1.3",
+    "prismjs": "1.30.0"
+  }
+}

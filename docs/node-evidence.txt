@@ -1,0 +1,25 @@
+✔ targets the current paragraph and preserves UTF-16 ranges (1.341417ms)
+✔ does not suggest inside fenced code or on empty paragraphs (0.190667ms)
+✔ applies only the exact unchanged revision and target (0.909041ms)
+✔ normalizes filenames without changing document content (0.435583ms)
+✔ paragraph boundaries respect whitespace-only blank lines (0.162292ms)
+✔ fenced code with a language-like marker stays excluded (0.188542ms)
+✔ CRLF and UTF-8 BOM round trip through LF editor offsets (0.952125ms)
+✔ selection must remain within the target paragraph for Tab acceptance (0.129542ms)
+✔ Gateway facts use Messages with bounded native web search (26.019042ms)
+✔ invented sources cannot authorize a factual edit (1.252291ms)
+✔ search errors remain unverified instead of reporting successful verification (0.451375ms)
+✔ direct Claude facts retain native citation sources and reject unsafe URLs (0.411791ms)
+✔ factual review rejects missing category instead of treating facts as grammar (0.698959ms)
+✔ a numeric fact change mislabeled grammar still requires evidence (0.379958ms)
+✔ provider adapters use the correct URL, headers and schema (6.127334ms)
+✔ missing key, malformed output and upstream failures are actionable without leaking secrets (1.083375ms)
+✔ HTTP boundary rejects foreign sites and exposes no keys or arbitrary files (41.986541ms)
+ℹ tests 17
+ℹ suites 0
+ℹ pass 17
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 240.691042

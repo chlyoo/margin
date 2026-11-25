@@ -1,0 +1,26 @@
+{
+  "verifiedAt": "2026-11-18T02:04:01.552Z",
+  "hashes": {
+    ".env.example": "76af7c3d100171b7113d9da449e1444b6294913948a79c3d14ebe4b4c9ee3363",
+    ".gitignore": "5fe4b1225eb84930699fb7f2e58e927bdd4951504fcf70c4c450aea01c17e66f",
+    "AGENTS.md": "75c5f43b1643e95957be302bd1cd009bb2f36226a81ade4dc0dd1dc8139d79f9",
+    "README.md": "f8640a18f633bf18d635769a4f7000e34fe52b2383cbfaf49641b6fd3c3a0943",
+    "ai.mjs": "8c4dea3266281e2479ea9c0f903e5868c86209adb33a184a56251d401b0f15e6",
+    "package-lock.json": "b63be0f7b602bf8429b49e7c6762796b17ccf12a9295662848476c216e11518d",
+    "package.json": "c22522aeef751feb5219a46e7f71090e16ca7bf202ab8e15adf9577150512ae0",
+    "server.mjs": "678b07b87f9e330ac762c333ff7b24e250a6f59dd0bea4cd99616f870669a563",
+    "public/app.js": "c5d4f50ad9afe3344717bbf26711f624962a84b112a81ebc23b860fae543416f",
+    "public/core.js": "5823c360f3035c0f6089adfc5d2c40cf5ad03edc5e126353e155a55dd50006d6",
+    "public/index.html": "d78d5b5ea7bd088673aac3b7930eea07bfe869b6594c6b95bcd44c0fbd297705",
+    "public/render.js": "8dbae30b99f1f61e4b51392444f34e97193d7437f20085fe2a886b86398778b9",
+    "public/style.css": "ca2cdf7057eb6b1f0adfbdf2226dadbe724b547a1975e65e6a3718efb0ece6a7",
+    "test/browser-auto.js": "a4e8409dc38fca16ab94be70c149aaf6e25668682532307408025f1b518aec37",
+    "test/browser-check.js": "ffb72868f3bbe44843fc9ffaba3fb1a45b7b5104db99ecd8db8c789f577fd1d8",
+    "test/browser-facts.js": "16b5e86b8bfa9c0a5fd08c389e31c21183ca29a9f344049f13f5becfc0a532cd",
+    "test/browser-files.js": "ef0c1ae36485d419bbb0efa7170f8724001ad3e2c6a76c0136ebca72cab027ea",
+    "test/core.test.mjs": "c3dd33161d4f695cfb577a782df19bb92125daf6ed3b3e53dcf8b103b4ededde",
+    "test/facts.test.mjs": "d12e6867a7fd51246ece597b46c9de44b7238ca72c47312ce8ec82d56e179c4e",
+    "test/fixture-server.mjs": "fd4b742a29dbfae3ba7a98460e808951a247d0ed9e8d46e39c778c37abd298f2",
+    "test/server.test.mjs": "cc17cbf335c563177c5dbcc1343acc8dba8bcd68e504fbef7bd14a086f4da336"
+  }
+}

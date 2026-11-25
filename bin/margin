@@ -1,0 +1,22 @@
+#!/bin/bash
+# margin [path ...] : open folders as workspaces and files as documents in Margin.
+set -euo pipefail
+source="${BASH_SOURCE[0]}"
+while [[ -L "$source" ]]; do
+  target="$(readlink "$source")"
+  if [[ "$target" == /* ]]; then source="$target"; else source="$(dirname "$source")/$target"; fi
+done
+project_dir="$(cd "$(dirname "$source")/.." && pwd)"
+bundle="$project_dir/build/Margin.app"
+case "${1:-}" in
+  -h|--help) printf 'usage: margin [folder|file ...]\n  folder  open it as a workspace window\n  file    open it as a document\n  (none)  bring Margin to the front\n'; exit 0 ;;
+esac
+if [[ ! -x "$bundle/Contents/MacOS/Margin" ]]; then bash "$project_dir/native/build.sh" >/dev/null; fi
+paths=()
+for arg in "$@"; do
+  if [[ -d "$arg" ]]; then paths+=("$(cd "$arg" && pwd -P)")
+  elif [[ -e "$arg" ]]; then paths+=("$(cd "$(dirname "$arg")" && pwd -P)/$(basename "$arg")")
+  else printf 'margin: %s: no such file or folder\n' "$arg" >&2; exit 1
+  fi
+done
+if [[ ${#paths[@]} -eq 0 ]]; then open "$bundle"; else open -a "$bundle" "${paths[@]}"; fi

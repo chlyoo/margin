@@ -1,0 +1,116 @@
+{
+  "artifact_id": "artifact-2026-11-18-markdown-studio-srs",
+  "parent_id": "artifact-2026-11-18-markdown-studio-milestone",
+  "artifact_type": "sdlc-srs",
+  "state": "reflecting",
+  "requirements": [
+    {
+      "id": "FR-MD-1",
+      "priority": "P0",
+      "acceptance": "Source, preview and split modes; independently selectable panes; pointer and keyboard resize; one canonical document; rendered pane is edited in place as rendered text and the Markdown source follows; pasted rich text converts to Markdown; #tag renders as a chip; Shift+Enter inserts a line break; formatting toolbar limited to Markdown constructs; link bubble, Cmd+K and auto-linking"
+    },
+    {
+      "id": "FR-MD-2",
+      "priority": "P0",
+      "acceptance": "GFM headings, tables, tasks and highlighted fences render; scripts/unsafe URLs stripped; external images opt-in"
+    },
+    {
+      "id": "FR-MD-3",
+      "priority": "P0",
+      "acceptance": "Native NSDocument open/save, UTF-8 BOM and CRLF format preservation; crash-recovery snapshots"
+    },
+    {
+      "id": "FR-MD-4",
+      "priority": "P0",
+      "acceptance": "Provider/model selection; live 1200ms paragraph review when configured; manual correction; original/replacement/reason; Tab accepts/Esc rejects; stale suggestions cannot apply; IME-safe"
+    },
+    {
+      "id": "FR-MD-5",
+      "priority": "P0",
+      "acceptance": "AI factual, wording and grammar review; native provider-search URL provenance; fact-labelled and numeric changes require evidence; semantic classification and relevance remain model judgments"
+    },
+    {
+      "id": "NFR-SEC-1",
+      "priority": "P0",
+      "acceptance": "No localhost server needed; API credentials in macOS Keychain/environment only; bundled sanitized preview; bounded review and stale-result checks"
+    },
+    {
+      "id": "FR-MD-6",
+      "priority": "P0",
+      "acceptance": "Native macOS .app with source/rendered/split view, native file editing and AI settings"
+    },
+    {
+      "id": "FR-MD-7",
+      "priority": "P0",
+      "acceptance": "Debounced durable draft autosave and original-file autosave when saved, truthful errors, conflict detection"
+    },
+    {
+      "id": "FR-MD-8",
+      "priority": "P0",
+      "acceptance": "Immutable timestamped versions with preview, restore-as-new-version and reopening recovery"
+    },
+    {
+      "id": "FR-IDE-1",
+      "priority": "P0",
+      "acceptance": "Folder workspace window with file tree; ignored build folders and secret-like files hidden; Markdown opens in the source/rendered pane; other text files open in a code view with line numbers and syntax colouring; edits autosave with external-change guard"
+    },
+    {
+      "id": "FR-IDE-2",
+      "priority": "P0",
+      "acceptance": "Agent run recorded as ordered steps; a step = reasoning text since the previous step + tools run + per-file before/after; changes made by shell commands are captured; parallel tool calls form one step; secret-like, ignored, oversized and non-UTF-8 files are never snapshotted"
+    },
+    {
+      "id": "FR-IDE-3",
+      "priority": "P0",
+      "acceptance": "Step review: ordered timeline, reason and line diff per step, previous/next, accept marks and advances, reject restores the previous text only when the step's result is still present (whole file, or every changed hunk found exactly once); otherwise refuses and writes nothing"
+    },
+    {
+      "id": "FR-IDE-4",
+      "priority": "P0",
+      "acceptance": "Typed instruction runs Claude Code headless in the workspace; follow-ups resume the same session; stop button; non-JSON output is shown, not dropped"
+    },
+    {
+      "id": "FR-IDE-5",
+      "priority": "P1",
+      "acceptance": "Simple terminal: shell command runs in the workspace, output streams into the log, `cd` persists, exit status shown; agent tool activity appears in the same log"
+    },
+    {
+      "id": "FR-IDE-6",
+      "priority": "P1",
+      "acceptance": "Recorded sessions persist per workspace and reload with decisions"
+    },
+    {
+      "id": "FR-IDE-7",
+      "priority": "P1",
+      "acceptance": "`margin [folder|file ...]` opens folders as workspace windows and files as documents"
+    },
+    {
+      "id": "FR-IDE-8",
+      "priority": "P1",
+      "acceptance": "Formatter of the open file's language runs on the editor text and is applied as one undoable saved edit; indent keys"
+    },
+    {
+      "id": "FR-IDE-9",
+      "priority": "P1",
+      "acceptance": "Terminal tab on a pseudo-terminal: full-screen programs, Ctrl-C, resize, Hangul, selection, scrollback"
+    },
+    {
+      "id": "NFR-IDE-1",
+      "priority": "P0",
+      "acceptance": "Checks replay a recorded stream with no live AI, no Keychain and no synthetic input; a workspace scan covers at most 5000 files of at most 1 MiB each"
+    }
+  ],
+  "design": {
+    "document": "native/Application.swift: MarginDocument and native/Core.swift",
+    "rendering": "native/preview.{html,js,css} with pinned marked/DOMPurify/Prism bundle resources",
+    "ui": "native/Editor.swift and native/Sheets.swift",
+    "transport": "native/Review.swift: URLSession providers, native search evidence and Keychain",
+    "persistence": "native/Core.swift: VersionStore immutable snapshots; native NSDocument autosave with FileGuard conflict check"
+  },
+  "knownLimits": [
+    "Live AI provider and Keychain credential storage need a configured key; not claimed as verified by fake parser tests",
+    "Model source relevance and semantic claim classification remain model judgments",
+    "Mixed EOL files normalize to the first EOL style",
+    "Versions stay local and are not automatically pruned"
+  ]
+}

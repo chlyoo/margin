@@ -1,0 +1,17 @@
+{
+  "goal": "Deliver the requested macOS app, including live AI review and durable autosave/versioning",
+  "chosen": "AppKit NSDocument/NSTextView editor and native toolbar/settings/history; bundled WebKit only for Markdown rendering; URLSession AI adapters; Keychain credentials",
+  "rejected": ["Browser app was an unauthorized product-surface assumption", "Web-only wrapper would retain browser editing rather than a native editor", "Third-party desktop shells add an unnecessary runtime"],
+  "constraints": ["No localhost server required by the app", "Preserve unrelated working files", "Do not overwrite existing app bundles", "No real AI test calls", "Only explicit Tab/button acceptance changes source", "Autosave status follows successful atomic disk writes", "Restore saves current content first and appends a new version"],
+  "storage": "Use FileManager's user Application Support URL plus the app bundle identifier; do not assume or report a path until resolved at runtime",
+  "risks": ["Failed or conflicting file writes", "Restoring over unsaved content", "App termination during a save", "Stale or misclassified AI suggestions"],
+  "circuit_breakers": ["Need destructive replacement of an existing app", "Unsaved content lost in restore tests", "Source snapshot differs from verified binary"],
+  "ownership": {"codex": "tools/markdown-studio/native, native docs/tests/build; required workflow records"},
+  "verification": ["Swift core self-tests on temporary storage", "Built bundle --check and --state-json", "Offscreen native UI + WebKit rendering check", "Native autosave/reopen/version restore/conflict tests", "Running bundle executable path verification"],
+  "toolchain": {"xcode":"/Applications/Xcode.app/Contents/Developer","swift":"6.4","swiftPackageDependencies":[]},
+  "requirements": {
+    "FR-MD-6":"Native macOS .app with source/rendered/split view, native file editing and AI settings",
+    "FR-MD-7":"Debounced durable draft autosave and original-file autosave when saved, truthful errors, conflict detection",
+    "FR-MD-8":"Immutable timestamped versions with preview, restore-as-new-version and reopening recovery"
+  }
+}

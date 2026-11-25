@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fbfaf5"/>
+      <stop offset="1" stop-color="#e6e3d6"/>
+    </linearGradient>
+    <linearGradient id="rule" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6fb08c"/>
+      <stop offset="1" stop-color="#3f7d5c"/>
+    </linearGradient>
+    <clipPath id="shape"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#paper)"/>
+  <g clip-path="url(#shape)">
+    <rect x="100" y="100" width="212" height="824" fill="#3f7d5c" fill-opacity="0.10"/>
+    <rect x="304" y="100" width="16" height="824" fill="url(#rule)"/>
+  </g>
+  <g fill="none" stroke="#22302a" stroke-width="56" stroke-linecap="round">
+    <path d="M545 262 L503 590"/>
+    <path d="M713 262 L671 590"/>
+    <path d="M436 372 L790 372"/>
+    <path d="M420 482 L774 482"/>
+  </g>
+  <rect x="420" y="684" width="360" height="46" rx="23" fill="#aab5ab"/>
+  <rect x="420" y="772" width="236" height="46" rx="23" fill="#c4ccc4"/>
+  <rect x="100" y="100" width="824" height="824" rx="186" fill="none" stroke="#1d211e" stroke-opacity="0.12" stroke-width="4"/>
+</svg>

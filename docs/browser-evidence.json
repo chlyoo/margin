@@ -1,0 +1,197 @@
+{
+  "verifiedAt": "2026-11-18T02:03:16.230Z",
+  "liveProviderCalls": "not-run",
+  "browser": "Chrome DevTools",
+  "viewport": "desktop 1440x960 and dark mobile 390x844",
+  "groups": {
+    "basic": [
+      {
+        "name": "editor available",
+        "pass": true
+      },
+      {
+        "name": "headings",
+        "pass": true
+      },
+      {
+        "name": "tables",
+        "pass": true
+      },
+      {
+        "name": "tasks",
+        "pass": true
+      },
+      {
+        "name": "highlighted code",
+        "pass": true
+      },
+      {
+        "name": "script sanitized",
+        "pass": true
+      },
+      {
+        "name": "unsafe URL sanitized",
+        "pass": true
+      },
+      {
+        "name": "external images blocked",
+        "pass": true
+      },
+      {
+        "name": "non-img remote resource vectors blocked",
+        "pass": true
+      },
+      {
+        "name": "preview mode",
+        "pass": true
+      },
+      {
+        "name": "source mode",
+        "pass": true
+      },
+      {
+        "name": "left preview selection",
+        "pass": true
+      },
+      {
+        "name": "keyboard resize",
+        "pass": true
+      },
+      {
+        "name": "draft persisted",
+        "pass": true
+      },
+      {
+        "name": "manual paragraph request",
+        "pass": true
+      },
+      {
+        "name": "suggestion shown",
+        "pass": true
+      },
+      {
+        "name": "accept applies",
+        "pass": true
+      },
+      {
+        "name": "reject preserves source",
+        "pass": true
+      },
+      {
+        "name": "stale response discarded",
+        "pass": true
+      },
+      {
+        "name": "no viewport overflow",
+        "pass": true
+      }
+    ],
+    "files": [
+      {
+        "name": "unsaved changes require confirmation",
+        "pass": true
+      },
+      {
+        "name": "Markdown import exact",
+        "pass": true
+      },
+      {
+        "name": "file writer exact content",
+        "pass": true
+      },
+      {
+        "name": "saved file name",
+        "pass": true
+      },
+      {
+        "name": "CRLF source uses consistent LF offsets",
+        "pass": true
+      },
+      {
+        "name": "CRLF and BOM preserved by file writer",
+        "pass": true
+      }
+    ],
+    "auto": [
+      {
+        "name": "live review enabled when configured",
+        "pass": true
+      },
+      {
+        "name": "automatic review can be disabled",
+        "pass": true
+      },
+      {
+        "name": "debounce restarts on edits",
+        "pass": true
+      },
+      {
+        "name": "one automatic paragraph correction",
+        "pass": true
+      },
+      {
+        "name": "IME composition sends no requests",
+        "pass": true
+      },
+      {
+        "name": "IME completion schedules correction",
+        "pass": true
+      },
+      {
+        "name": "provider switch invalidates suggestion",
+        "pass": true
+      },
+      {
+        "name": "Claude adapter round trip through server",
+        "pass": true
+      },
+      {
+        "name": "both source panes share one document",
+        "pass": true
+      }
+    ],
+    "facts": [
+      {
+        "name": "automatic factual suggestion",
+        "pass": true
+      },
+      {
+        "name": "native evidence shown",
+        "pass": true
+      },
+      {
+        "name": "inline Tab preview",
+        "pass": true
+      },
+      {
+        "name": "Tab applies factual correction",
+        "pass": true
+      },
+      {
+        "name": "accept hides suggestion",
+        "pass": true
+      },
+      {
+        "name": "unverified visible",
+        "pass": true
+      },
+      {
+        "name": "unverified edit cannot apply",
+        "pass": true
+      },
+      {
+        "name": "Tab never applies unsupported fact",
+        "pass": true
+      },
+      {
+        "name": "Escape dismisses",
+        "pass": true
+      },
+      {
+        "name": "moving cursor never applies a remote paragraph suggestion",
+        "pass": true
+      }
+    ]
+  },
+  "checkCount": 45
+}
