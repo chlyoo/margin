@@ -169,18 +169,19 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
     private(set) var partFocus = 0
     let log = NSTextView()
     let input = NSTextField()
-    let target = NSSegmentedControl(labels:["Claude에게 지시","셸 명령"],trackingMode:.selectOne,target:nil,action:nil)
     let allowShell = NSButton(checkboxWithTitle:"Claude의 셸 명령 허용",target:nil,action:nil)
     let followBox = NSButton(checkboxWithTitle:"파일 따라가기",target:nil,action:nil)
     let stopButton = NSButton(title:"중지",target:nil,action:nil)
     let status = marginLabel("",size:11)
-    let shell: ShellRunner
     let terminal: TerminalView
-    let lowerTabs = NSSegmentedControl(labels:["기록","터미널"],trackingMode:.selectOne,target:nil,action:nil)
-    private var logArea: NSView?
+    /// Right side panel: the Claude log and instruction line. ⌥⌘B.
+    let claudePanel = NSView()
     private let mainSplit = NSSplitView()
+    private let centerSplit = NSSplitView()
     private var sidebar: NSView?
     private var sidebarWidth: CGFloat = 230
+    private var claudeWidth: CGFloat = 380
+    private var terminalHeight: CGFloat = 260
     private(set) var searchPanel: WorkspaceSearchController?
     private var terminalQuiet: DispatchWorkItem?
     /// Folders searched for formatters; nil means the person's own. Set by the checks.
@@ -216,7 +217,6 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
             session = AgentSession(id:UUID().uuidString,root:self.root.path,createdAt:Date(),prompts:[],steps:[],summary:"",agentSessionID:nil)
             recorder = StepRecorder(root:self.root,background:background)
         }
-        shell = ShellRunner(directory:self.root)
         terminal = TerminalView(directory:self.root)
         let window = NSWindow(contentRect:NSRect(x:0,y:0,width:1320,height:860),styleMask:[.titled,.closable,.miniaturizable,.resizable],backing:.buffered,defer:false)
         window.minSize = NSSize(width:900,height:600); window.title = "Margin · " + self.root.lastPathComponent; window.isRestorable = false
@@ -226,7 +226,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         recorder.onStep = { [weak self] step in self?.stepAdded(step) }
         reloadSteps()
         recorder.whenIdle { [weak self] in self?.refreshTree() }
-        setStatus(recorder.steps.isEmpty ? "아래 입력란에 지시를 적으면 Claude가 이 폴더에서 작업하고, 변경을 단계별로 기록해요." : "지난 세션의 변경 \(recorder.steps.count)단계를 불러왔어요.")
+        setStatus(recorder.steps.isEmpty ? "오른쪽 Claude 패널(⌥⌘B)에 지시를 적으면 Claude가 이 폴더에서 작업하고, 변경을 단계별로 기록해요." : "지난 세션의 변경 \(recorder.steps.count)단계를 불러왔어요.")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 
@@ -249,21 +249,31 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
     private func build() {
         guard let content = window?.contentView else { return }
         let main = mainSplit; main.isVertical = true; main.dividerStyle = .thin
-        fill(main,in:content)
+        status.lineBreakMode = .byTruncatingTail; status.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        let terminalToggle = marginButton("터미널  ⌃`",symbol:"terminal",target:self,action:#selector(showTerminal(_:)))
+        terminalToggle.toolTip = "이 폴더에서 여는 실제 터미널을 아래에 열고 닫아요(vim, top 등 사용 가능)."
+        let claudeToggle = marginButton("Claude  ⌥⌘B",symbol:"sparkles",target:self,action:#selector(toggleClaude(_:)))
+        claudeToggle.toolTip = "Claude에게 일을 시키는 오른쪽 패널을 열고 닫아요."
+        for button in [terminalToggle,claudeToggle] { button.controlSize = .small; button.bezelStyle = .recessed }
+        let statusBar = NSStackView(views:[status,NSView(),terminalToggle,claudeToggle])
+        statusBar.orientation = .horizontal; statusBar.spacing = 8; statusBar.edgeInsets = NSEdgeInsets(top:0,left:12,bottom:0,right:8)
+        statusBar.translatesAutoresizingMaskIntoConstraints = false; content.addSubview(statusBar)
+        NSLayoutConstraint.activate([statusBar.leadingAnchor.constraint(equalTo:content.leadingAnchor),statusBar.trailingAnchor.constraint(equalTo:content.trailingAnchor),statusBar.bottomAnchor.constraint(equalTo:content.bottomAnchor),statusBar.heightAnchor.constraint(equalToConstant:26)])
+        fill(main,in:content,bottom:statusBar.topAnchor)
         // File tree
         let column = NSTableColumn(identifier:NSUserInterfaceItemIdentifier("name")); column.resizingMask = .autoresizingMask
         outline.addTableColumn(column); outline.outlineTableColumn = column; outline.headerView = nil; outline.rowHeight = 22
         outline.dataSource = self; outline.delegate = self; outline.style = .sourceList
         let side = scrolling(outline)
         main.addSubview(side); sidebar = side
-        let right = NSSplitView(); right.isVertical = false; right.dividerStyle = .thin
+        let right = centerSplit; right.isVertical = false; right.dividerStyle = .thin
         main.addSubview(right)
         // Upper: tabs + file or review
         let upper = NSView()
         tabs.selectedSegment = 0; tabs.target = self; tabs.action = #selector(changedTab); tabs.segmentStyle = .texturedRounded
         let formatButton = marginButton("코드 정리",symbol:"wand.and.stars",target:self,action:#selector(formatDocument(_:)))
         formatButton.toolTip = "열린 파일을 그 언어의 정리 도구(Python은 ruff 등)로 정리해요. ⌥⌘L"
-        let bar = NSStackView(views:[tabs,fileTitle,NSView(),formatButton,marginButton("새 세션",symbol:"plus.bubble",target:self,action:#selector(newSession))])
+        let bar = NSStackView(views:[tabs,fileTitle,NSView(),formatButton])
         bar.orientation = .horizontal; bar.spacing = 12; bar.edgeInsets = NSEdgeInsets(top:8,left:12,bottom:8,right:12)
         bar.translatesAutoresizingMaskIntoConstraints = false; upper.addSubview(bar)
         fileTitle.lineBreakMode = .byTruncatingMiddle; fileTitle.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
@@ -305,46 +315,47 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         ])
         reviewArea.isHidden = true
         right.addSubview(upper)
-        // Lower: agent and shell log + instruction line
-        let lower = NSView()
-        readOnly(log,font:.monospacedSystemFont(ofSize:11.5,weight:.regular))
+        // Bottom panel: the terminal, hidden until ⌃`.
+        terminal.isHidden = true
+        terminal.onActivity = { [weak self] in self?.terminalActivity() }
+        right.addSubview(terminal)
+        // Right panel: Claude log + instruction line
+        let panel = claudePanel
+        readOnly(log,font:.systemFont(ofSize:13)); log.textContainerInset = NSSize(width:14,height:12)
         let logScroll = scrolling(log)
-        target.selectedSegment = 0; target.target = self; target.action = #selector(changedTarget); target.segmentStyle = .texturedRounded
         input.placeholderString = "Claude에게 시킬 일을 적고 Enter를 누르세요."
         input.target = self; input.action = #selector(send); input.font = .systemFont(ofSize:13); input.delegate = self
         allowShell.state = UserDefaults.standard.object(forKey:"studio.allowShell") == nil || UserDefaults.standard.bool(forKey:"studio.allowShell") ? .on : .off
-        allowShell.target = self; allowShell.action = #selector(changedAllowShell)
+        allowShell.target = self; allowShell.action = #selector(changedAllowShell); allowShell.controlSize = .small
         stopButton.target = self; stopButton.action = #selector(stop); stopButton.bezelStyle = .rounded; stopButton.isEnabled = false
-        let line = NSStackView(views:[target,input,stopButton])
-        line.orientation = .horizontal; line.spacing = 8; line.edgeInsets = NSEdgeInsets(top:6,left:12,bottom:4,right:12)
-        lowerTabs.selectedSegment = 0; lowerTabs.target = self; lowerTabs.action = #selector(changedLowerTab); lowerTabs.controlSize = .small; lowerTabs.segmentStyle = .texturedRounded
-        lowerTabs.toolTip = "기록: Claude와 셸 명령의 출력. 터미널: 이 폴더에서 여는 실제 터미널(vim, top 등 사용 가능). ⌃`"
-        terminal.isHidden = true; logArea = logScroll
-        terminal.onActivity = { [weak self] in self?.terminalActivity() }
-        let foot = NSStackView(views:[lowerTabs,status,NSView(),allowShell])
-        foot.orientation = .horizontal; foot.spacing = 8; foot.edgeInsets = NSEdgeInsets(top:0,left:14,bottom:6,right:12)
-        status.lineBreakMode = .byTruncatingTail; status.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
-        for view in [logScroll,terminal,line,foot] as [NSView] { view.translatesAutoresizingMaskIntoConstraints = false; lower.addSubview(view) }
+        let head = NSStackView(views:[marginLabel("Claude",size:13,color:.labelColor),NSView(),marginButton("새 세션",symbol:"plus.bubble",target:self,action:#selector(newSession))])
+        head.orientation = .horizontal; head.spacing = 8; head.edgeInsets = NSEdgeInsets(top:6,left:12,bottom:6,right:8)
+        let line = NSStackView(views:[input,stopButton])
+        line.orientation = .horizontal; line.spacing = 8; line.edgeInsets = NSEdgeInsets(top:6,left:10,bottom:4,right:10)
+        let foot = NSStackView(views:[allowShell,NSView()])
+        foot.orientation = .horizontal; foot.edgeInsets = NSEdgeInsets(top:0,left:12,bottom:6,right:12)
+        for view in [head,logScroll,line,foot] as [NSView] { view.translatesAutoresizingMaskIntoConstraints = false; panel.addSubview(view) }
         NSLayoutConstraint.activate([
-            terminal.topAnchor.constraint(equalTo:lower.topAnchor),terminal.leadingAnchor.constraint(equalTo:lower.leadingAnchor),terminal.trailingAnchor.constraint(equalTo:lower.trailingAnchor),terminal.bottomAnchor.constraint(equalTo:line.topAnchor),
-            logScroll.topAnchor.constraint(equalTo:lower.topAnchor),logScroll.leadingAnchor.constraint(equalTo:lower.leadingAnchor),logScroll.trailingAnchor.constraint(equalTo:lower.trailingAnchor),logScroll.bottomAnchor.constraint(equalTo:line.topAnchor),
-            line.leadingAnchor.constraint(equalTo:lower.leadingAnchor),line.trailingAnchor.constraint(equalTo:lower.trailingAnchor),line.heightAnchor.constraint(equalToConstant:36),line.bottomAnchor.constraint(equalTo:foot.topAnchor),
-            foot.leadingAnchor.constraint(equalTo:lower.leadingAnchor),foot.trailingAnchor.constraint(equalTo:lower.trailingAnchor),foot.bottomAnchor.constraint(equalTo:lower.bottomAnchor),foot.heightAnchor.constraint(equalToConstant:24)
+            head.topAnchor.constraint(equalTo:panel.topAnchor),head.leadingAnchor.constraint(equalTo:panel.leadingAnchor),head.trailingAnchor.constraint(equalTo:panel.trailingAnchor),head.heightAnchor.constraint(equalToConstant:44),
+            logScroll.topAnchor.constraint(equalTo:head.bottomAnchor),logScroll.leadingAnchor.constraint(equalTo:panel.leadingAnchor),logScroll.trailingAnchor.constraint(equalTo:panel.trailingAnchor),logScroll.bottomAnchor.constraint(equalTo:line.topAnchor),
+            line.leadingAnchor.constraint(equalTo:panel.leadingAnchor),line.trailingAnchor.constraint(equalTo:panel.trailingAnchor),line.heightAnchor.constraint(equalToConstant:36),line.bottomAnchor.constraint(equalTo:foot.topAnchor),
+            foot.leadingAnchor.constraint(equalTo:panel.leadingAnchor),foot.trailingAnchor.constraint(equalTo:panel.trailingAnchor),foot.bottomAnchor.constraint(equalTo:panel.bottomAnchor),foot.heightAnchor.constraint(equalToConstant:24)
         ])
-        right.addSubview(lower)
+        main.addSubview(panel)
         content.layoutSubtreeIfNeeded()
-        main.setPosition(230,ofDividerAt:0); right.setPosition(content.bounds.height - 250,ofDividerAt:0); review.setPosition(270,ofDividerAt:0)
+        main.setPosition(230,ofDividerAt:0); main.setPosition(main.bounds.width - claudeWidth,ofDividerAt:1); review.setPosition(270,ofDividerAt:0)
         if UserDefaults.standard.bool(forKey:"studio.sidebarHidden") { side.isHidden = true; main.adjustSubviews() }
-        main.setHoldingPriority(.defaultHigh,forSubviewAt:0); right.setHoldingPriority(.defaultHigh,forSubviewAt:1); review.setHoldingPriority(.defaultHigh,forSubviewAt:0)
+        if UserDefaults.standard.bool(forKey:"studio.claudeHidden") { panel.isHidden = true; main.adjustSubviews() }
+        main.setHoldingPriority(.defaultHigh,forSubviewAt:0); main.setHoldingPriority(.defaultHigh,forSubviewAt:2); right.setHoldingPriority(.defaultHigh,forSubviewAt:1); review.setHoldingPriority(.defaultHigh,forSubviewAt:0)
     }
 
     override func showWindow(_ sender: Any?) {
         super.showWindow(sender)
         DispatchQueue.main.async { [weak self] in
-            guard let self, let content = self.window?.contentView, let main = content.subviews.first as? NSSplitView, let right = main.subviews.last as? NSSplitView else { return }
+            guard let self, let content = self.window?.contentView else { return }
             content.layoutSubtreeIfNeeded()
-            if !self.sidebarHidden { main.setPosition(self.sidebarWidth,ofDividerAt:0) }
-            right.setPosition(content.bounds.height - 250,ofDividerAt:0)
+            if !self.sidebarHidden { self.mainSplit.setPosition(self.sidebarWidth,ofDividerAt:0) }
+            self.placeClaude()
         }
     }
 
@@ -363,6 +374,53 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
             sidebar.isHidden = false; mainSplit.adjustSubviews(); mainSplit.setPosition(sidebarWidth,ofDividerAt:0)
         }
         UserDefaults.standard.set(hidden,forKey:"studio.sidebarHidden")
+    }
+
+    var claudeHidden: Bool { claudePanel.isHidden }
+    /// ⌥⌘B, as VS Code's secondary side bar: opens the Claude panel on the instruction line, or closes it.
+    @objc func toggleClaude(_ sender: Any?) {
+        if claudeHidden { setClaude(hidden:false); window?.makeFirstResponder(input) } else { setClaude(hidden:true) }
+    }
+    func setClaude(hidden: Bool) {
+        guard claudePanel.isHidden != hidden else { return }
+        if hidden {
+            if claudePanel.frame.width > 80 { claudeWidth = claudePanel.frame.width }
+            if let view = window?.firstResponder as? NSView, view.isDescendant(of:claudePanel) { focusMain() }
+            claudePanel.isHidden = true; mainSplit.adjustSubviews()
+        } else {
+            claudePanel.isHidden = false; mainSplit.adjustSubviews(); placeClaude()
+        }
+        UserDefaults.standard.set(hidden,forKey:"studio.claudeHidden")
+    }
+    private func placeClaude() {
+        guard !claudeHidden else { return }
+        mainSplit.setPosition(mainSplit.bounds.width - claudeWidth - mainSplit.dividerThickness,ofDividerAt:1)
+    }
+    var terminalHidden: Bool { terminal.isHidden }
+    /// ⌃`, as in VS Code: opens the terminal panel, focuses it, or closes it when it already has focus.
+    @objc func showTerminal(_ sender: Any?) {
+        if terminal.isHidden { setTerminal(hidden:false) }
+        else if window?.firstResponder === terminal { setTerminal(hidden:true) }
+        else { window?.makeFirstResponder(terminal) }
+    }
+    func setTerminal(hidden: Bool) {
+        guard terminal.isHidden != hidden else { return }
+        if hidden {
+            if terminal.frame.height > 60 { terminalHeight = terminal.frame.height }
+            if window?.firstResponder === terminal { focusMain() }
+            terminal.isHidden = true; centerSplit.adjustSubviews()
+        } else {
+            terminal.isHidden = false; centerSplit.adjustSubviews()
+            centerSplit.setPosition(centerSplit.bounds.height - terminalHeight,ofDividerAt:0)
+            window?.contentView?.layoutSubtreeIfNeeded()
+            if !terminal.isRunning, terminal.exitStatus == nil { terminal.start() }
+            window?.makeFirstResponder(terminal)
+        }
+    }
+    private func focusMain() {
+        if !reviewArea.isHidden { window?.makeFirstResponder(stepsTable) }
+        else if openPath == nil || (isMarkdown && markdownPane.selector.selectedSegment == 1) { window?.makeFirstResponder(outline) }
+        else { window?.makeFirstResponder(activeEditor) }
     }
 
     /// ⌘F when no editor has focus (tree, log, markdown preview): show the source and its find bar.
@@ -703,7 +761,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
     }
     func showStep() {
         guard let index = selectedStep, recorder.steps.indices.contains(index) else {
-            reasonText.string = recorder.steps.isEmpty ? "아직 기록된 변경이 없어요. 아래에서 Claude에게 일을 시키면, 파일이 바뀔 때마다 이유와 함께 한 단계씩 여기에 쌓여요." : ""
+            reasonText.string = recorder.steps.isEmpty ? "아직 기록된 변경이 없어요. 오른쪽 Claude 패널(⌥⌘B)에서 일을 시키면, 파일이 바뀔 때마다 이유와 함께 한 단계씩 여기에 쌓여요." : ""
             diffText.textStorage?.setAttributedString(NSAttributedString()); counter.stringValue = ""; shownStep = nil
             acceptButton.isEnabled = false; rejectButton.isEnabled = false; partButton.isHidden = true; return
         }
@@ -814,43 +872,56 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         session = AgentSession(id:UUID().uuidString,root:root.path,createdAt:Date(),prompts:[],steps:[],summary:"",agentSessionID:nil)
         recorder = StepRecorder(root:root,background:background)
         recorder.onStep = { [weak self] step in self?.stepAdded(step) }
-        log.string = ""; shownStep = nil; warnedTruncation = false; reloadSteps()
+        log.string = ""; lastLogKind = nil; shownStep = nil; warnedTruncation = false; reloadSteps()
         recorder.whenIdle { [weak self] in self?.refreshTree() }
-        // With no steps and the terminal showing, nothing else on screen would change.
-        if lowerTabs.selectedSegment != 0 { lowerTabs.selectedSegment = 0; changedLowerTab() }
+        // The session line goes to the Claude log; with that panel closed, nothing on screen would change.
+        setClaude(hidden:false)
         append("＋ 새 세션 · 다음 지시부터 Claude가 이전 대화를 이어받지 않아요.",color:.systemBlue)
         window?.makeFirstResponder(input)
         setStatus("새 세션을 시작했어요. 지난 세션의 기록은 지우지 않았어요.")
     }
 
-    // MARK: Agent and shell
+    // MARK: Agent
 
-    private func append(_ text: String, color: NSColor = .labelColor) {
+    private enum LogKind { case prompt, reply, tool, note }
+    private var lastLogKind: LogKind?
+    /// The log reads as a conversation: the person's instruction and Claude's reply in body text under a name, tools and notes small and grey.
+    private func append(_ text: String, color: NSColor = .secondaryLabelColor, kind: LogKind = .note) {
         guard let storage = log.textStorage else { return }
-        storage.append(NSAttributedString(string:text + "\n",attributes:[.font:NSFont.monospacedSystemFont(ofSize:11.5,weight:.regular),.foregroundColor:color]))
+        func style(before: CGFloat, after: CGFloat, indent: CGFloat = 0, line: CGFloat = 2) -> NSParagraphStyle {
+            let value = NSMutableParagraphStyle(); value.paragraphSpacingBefore = before; value.paragraphSpacing = after
+            value.firstLineHeadIndent = indent; value.headIndent = indent; value.lineSpacing = line
+            return value
+        }
+        func header(_ name: String, _ tint: NSColor) -> NSAttributedString {
+            NSAttributedString(string:name + "\n",attributes:[.font:NSFont.systemFont(ofSize:11,weight:.semibold),.foregroundColor:tint,.paragraphStyle:style(before:storage.length == 0 ? 0 : 14,after:3)])
+        }
+        let piece = NSMutableAttributedString()
+        switch kind {
+        case .prompt:
+            piece.append(header("나",.systemBlue))
+            piece.append(NSAttributedString(string:text + "\n",attributes:[.font:NSFont.systemFont(ofSize:13,weight:.medium),.foregroundColor:NSColor.labelColor,.paragraphStyle:style(before:0,after:4,line:3)]))
+        case .reply:
+            if lastLogKind != .reply && lastLogKind != .tool { piece.append(header("Claude",.systemPurple)) }
+            let body = LogMarkdown.render(text,size:13)
+            body.addAttribute(.paragraphStyle,value:style(before:2,after:6,line:3),range:NSRange(location:0,length:body.length))
+            piece.append(body); piece.append(NSAttributedString(string:"\n"))
+        case .tool:
+            piece.append(NSAttributedString(string:text + "\n",attributes:[.font:NSFont.monospacedSystemFont(ofSize:10.5,weight:.regular),.foregroundColor:color,.paragraphStyle:style(before:1,after:1,indent:8,line:1)]))
+        case .note:
+            piece.append(NSAttributedString(string:text + "\n",attributes:[.font:NSFont.systemFont(ofSize:11.5),.foregroundColor:color,.paragraphStyle:style(before:5,after:3,line:2)]))
+        }
+        if kind != .note { lastLogKind = kind }
+        storage.append(piece)
         if storage.length > 400_000 { storage.deleteCharacters(in:NSRange(location:0,length:storage.length - 300_000)) }
         log.scrollToEndOfDocument(nil)
     }
     var logText: String { log.string }
-    @objc func changedTarget() { input.placeholderString = target.selectedSegment == 0 ? "Claude에게 시킬 일을 적고 Enter를 누르세요." : "이 폴더에서 실행할 셸 명령을 적고 Enter를 누르세요." }
-    @objc func changedLowerTab() {
-        let showTerminal = lowerTabs.selectedSegment == 1
-        logArea?.isHidden = showTerminal; terminal.isHidden = !showTerminal
-        guard showTerminal else { return }
-        window?.contentView?.layoutSubtreeIfNeeded()
-        if !terminal.isRunning, terminal.exitStatus == nil { terminal.start() }
-        window?.makeFirstResponder(terminal)
-    }
-    /// ⌃` opens the terminal; pressed again inside it, goes back to the instruction line.
-    @objc func showTerminal(_ sender: Any?) {
-        if lowerTabs.selectedSegment == 1, window?.firstResponder === terminal { window?.makeFirstResponder(input); return }
-        lowerTabs.selectedSegment = 1; changedLowerTab()
-    }
     /// Commands typed in the terminal change files too. Once its output has been quiet for a while, the tree and the open file catch up.
     private func terminalActivity() {
         terminalQuiet?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            guard let self, !self.agentRunning, !self.shell.isRunning else { return }
+            guard let self, !self.agentRunning else { return }
             self.reloadOpenFileIfClean()
             self.recorder.rebase { [weak self] in self?.refreshTree() }
         }
@@ -861,16 +932,16 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
     @objc func send() {
         let text = input.stringValue.trimmingCharacters(in:.whitespacesAndNewlines)
         guard !text.isEmpty else { return }
-        if target.selectedSegment == 0 { if runAgent(text) { input.stringValue = "" } } else if runShell(text) { input.stringValue = "" }
+        if runAgent(text) { input.stringValue = "" }
     }
     /// Feeds one line of the agent's stream. Recorded runs are replayed through the same path.
     @discardableResult func ingest(_ line: String) -> [AgentEvent] {
         let events = recorder.feed(line)
         for event in events {
             switch event {
-            case .text(let value): append(value)
-            case .toolUse(_, let tool, let detail): append("⏵ \(tool)  \(short(detail))",color:.secondaryLabelColor)
-            case .toolResult(_, let failed): if failed { append("  ↳ 도구 실행 실패",color:.systemRed) }
+            case .text(let value): append(value,kind:.reply)
+            case .toolUse(_, let tool, let detail): append("⏵ \(tool)  \(short(detail))",color:.secondaryLabelColor,kind:.tool)
+            case .toolResult(_, let failed): if failed { append("  ↳ 도구 실행 실패",color:.systemRed,kind:.tool) }
             case .finished(_, let failed): append(failed ? "■ 오류로 끝났어요." : "■ 작업을 마쳤어요.",color:failed ? .systemRed : .secondaryLabelColor)
             case .raw(let value): append(value,color:.tertiaryLabelColor)
             case .session: break
@@ -882,7 +953,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         guard !agentRunning else { setStatus("Claude가 아직 작업 중이에요. 끝난 뒤에 다음 지시를 보내 주세요."); return false }
         flushSave()
         session.prompts.append(prompt)
-        append("› " + prompt,color:.systemBlue)
+        append(prompt,kind:.prompt)
         starting = true; stopRequested = false; sawStream = false; startupNoise = []
         stopButton.isEnabled = true
         setStatus("Claude가 작업하고 있어요…")
@@ -892,7 +963,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
     }
     private func launch(_ prompt: String) {
         starting = false
-        guard !stopRequested else { stopButton.isEnabled = shell.isRunning; setStatus("Claude 작업을 시작하기 전에 중지했어요."); return }
+        guard !stopRequested else { stopButton.isEnabled = false; setStatus("Claude 작업을 시작하기 전에 중지했어요."); return }
         append("Claude 설정 폴더 · " + (ProcessInfo.processInfo.environment["CLAUDE_CONFIG_DIR"] ?? "기본(~/.claude). 이 앱을 띄운 환경에 CLAUDE_CONFIG_DIR이 없어요."),color:.tertiaryLabelColor)
         let process = AgentLauncher.process(prompt:prompt,resume:recorder.sessionID,allowShell:allowShell.state == .on,directory:root)
         process.onLine = { [weak self] line, isError in
@@ -905,37 +976,21 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
             // The run counts as going on until its last change is recorded; a reject in between would be read as Claude's edit.
             self?.recorder.capture {
                 guard let self else { return }
-                self.agent = nil; self.stopButton.isEnabled = self.shell.isRunning
+                self.agent = nil; self.stopButton.isEnabled = false
                 self.persist()
                 if !self.sawStream { for line in self.startupNoise where !line.isEmpty { self.append(line,color:.tertiaryLabelColor) } }
                 if self.stopRequested { self.setStatus("Claude 작업을 중지했어요. 그때까지 바뀐 내용은 단계로 남아 있어요."); return }
                 let pending = self.recorder.steps.filter { $0.decision == "pending" }.count
-                self.setStatus(code == 0 ? (pending == 0 ? "Claude가 작업을 마쳤어요. 바뀐 파일은 없어요." : "Claude가 작업을 마쳤어요. '변경 따라가기'에서 \(pending)단계를 순서대로 확인해 보세요.") : "Claude 실행이 종료 코드 \(code)로 끝났어요. 위 기록을 확인해 주세요.")
+                self.setStatus(code == 0 ? (pending == 0 ? "Claude가 작업을 마쳤어요. 바뀐 파일은 없어요." : "Claude가 작업을 마쳤어요. '변경 따라가기'에서 \(pending)단계를 순서대로 확인해 보세요.") : "Claude 실행이 종료 코드 \(code)로 끝났어요. Claude 패널의 기록을 확인해 주세요.")
             }
         }
-        do { try process.start() } catch { stopButton.isEnabled = shell.isRunning; setStatus("Claude를 실행하지 못했어요 · " + error.localizedDescription); return }
+        do { try process.start() } catch { stopButton.isEnabled = false; setStatus("Claude를 실행하지 못했어요 · " + error.localizedDescription); return }
         agent = process
     }
-    @discardableResult func runShell(_ command: String, done: ((Int32) -> Void)? = nil) -> Bool {
-        append("$ " + command,color:.systemBlue)
-        do {
-            try shell.run(command,output:{ [weak self] line, isError in self?.append(line,color:isError ? .systemRed : .labelColor) }) { [weak self] code in
-                guard let self else { return }
-                if code != 0 { self.append("종료 코드 \(code)",color:.systemRed) }
-                self.stopButton.isEnabled = self.agentRunning
-                self.setStatus("셸 위치 · " + self.shell.directory.path)
-                self.reloadOpenFileIfClean()
-                if self.agentRunning { done?(code) } else { self.recorder.rebase { [weak self] in self?.refreshTree(); done?(code) } }
-            }
-        } catch { setStatus(error.localizedDescription); return false }
-        stopButton.isEnabled = true
-        return true
-    }
     @objc func stop() {
-        if shell.isRunning { shell.stop() }
         if agentRunning { stopRequested = true; agent?.stop(); append("■ 중지를 요청했어요.",color:.systemRed) }
     }
-    func shutdown() { flushSave(); stopRequested = true; agent?.stop(); shell.stop(); terminalQuiet?.cancel(); terminal.stop() }
+    func shutdown() { flushSave(); stopRequested = true; agent?.stop(); terminalQuiet?.cancel(); terminal.stop() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         flushSave()
         if dirty { return false }
@@ -944,5 +999,54 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
     func windowWillClose(_ notification: Notification) {
         shutdown()
         (NSApp.delegate as? MarginAppDelegate)?.studios.removeAll { $0 === self }
+    }
+}
+
+/// Claude writes Markdown. The log shows its headings, lists, code blocks and inline emphasis instead of the raw marks.
+enum LogMarkdown {
+    static func render(_ text: String, size: CGFloat) -> NSMutableAttributedString {
+        let result = NSMutableAttributedString()
+        let body = NSFont.systemFont(ofSize:size), mono = NSFont.monospacedSystemFont(ofSize:size - 1.5,weight:.regular)
+        var inFence = false
+        let lines = text.trimmingCharacters(in:.newlines).components(separatedBy:"\n")
+        for raw in lines {
+            let end = result.length == 0 ? "" : "\n"
+            if raw.trimmingCharacters(in:.whitespaces).hasPrefix("```") { inFence.toggle(); continue }
+            if inFence {
+                result.append(NSAttributedString(string:end + raw,attributes:[.font:mono,.foregroundColor:NSColor.labelColor,.backgroundColor:NSColor.quaternaryLabelColor.withAlphaComponent(0.25)]))
+                continue
+            }
+            var line = raw, font = body
+            if let match = line.range(of:#"^#{1,6}\s+"#,options:.regularExpression) {
+                line.removeSubrange(match); font = .systemFont(ofSize:size + 1,weight:.semibold)
+            } else if let match = line.range(of:#"^(\s*)[-*+]\s+"#,options:.regularExpression) {
+                let indent = String(line[match].prefix { $0 == " " })
+                line.replaceSubrange(match,with:indent + "•  ")
+            }
+            result.append(NSAttributedString(string:end)); result.append(inline(line,font:font,mono:mono))
+        }
+        return result
+    }
+    static func inline(_ text: String, font: NSFont, mono: NSFont) -> NSAttributedString {
+        let plain: [NSAttributedString.Key:Any] = [.font:font,.foregroundColor:NSColor.labelColor]
+        guard let parsed = try? AttributedString(markdown:text,options:.init(interpretedSyntax:.inlineOnlyPreservingWhitespace)) else { return NSAttributedString(string:text,attributes:plain) }
+        let result = NSMutableAttributedString(string:"")
+        for run in parsed.runs {
+            let piece = String(parsed[run.range].characters)
+            var attributes = plain
+            let intent = run.inlinePresentationIntent ?? []
+            if intent.contains(.code) {
+                attributes[.font] = mono; attributes[.foregroundColor] = NSColor.systemPink
+                attributes[.backgroundColor] = NSColor.quaternaryLabelColor.withAlphaComponent(0.25)
+            } else {
+                var traits: NSFontDescriptor.SymbolicTraits = []
+                if intent.contains(.stronglyEmphasized) { traits.insert(.bold) }
+                if intent.contains(.emphasized) { traits.insert(.italic) }
+                if !traits.isEmpty { attributes[.font] = NSFont(descriptor:font.fontDescriptor.withSymbolicTraits(traits),size:font.pointSize) ?? font }
+            }
+            if let link = run.link { attributes[.link] = link }
+            result.append(NSAttributedString(string:piece,attributes:attributes))
+        }
+        return result
     }
 }

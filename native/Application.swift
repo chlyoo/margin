@@ -368,11 +368,10 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
         let plain = PlainTableProbe()
         step("window") { limits["window_was_key_at_start"] = window.isKeyWindow; limits["app_was_active_at_start"] = NSApp.isActive; plain.show() }
         step("stock table") { plain.click(row:2) }
-        step("shell target") { limits["stock_table_row_click_selects"] = plain.table.selectedRow == 2; plain.close(); window.makeKeyAndOrderFront(nil) }
-        step("shell target click") { click(studio.target,NSPoint(x:studio.target.bounds.width * 0.75,y:studio.target.bounds.midY)) }
-        step("input focus") { result["click_selects_shell_target"] = studio.target.selectedSegment == 1; click(studio.input) }
-        step("typing") { result["click_focuses_input"] = inInput(); key(18,"1"); key(19,"2"); key(20,"3"); key(36,"\r") }
-        step("shell ran",wait:2.5) { result["typed_command_runs_on_enter"] = studio.logText.contains("$ 123") && studio.input.stringValue.isEmpty; click(studio.outline,NSPoint(x:60,y:row("README.md").midY)) }
+        step("claude panel") { limits["stock_table_row_click_selects"] = plain.table.selectedRow == 2; plain.close(); window.makeKeyAndOrderFront(nil); studio.setClaude(hidden:false) }
+        step("input focus") { click(studio.input) }
+        step("typing") { result["click_focuses_input"] = inInput(); key(18,"1"); key(19,"2"); key(20,"3") }
+        step("typed",wait:2.5) { result["typing_goes_to_claude_input"] = studio.input.stringValue == "123"; studio.input.stringValue = ""; click(studio.outline,NSPoint(x:60,y:row("README.md").midY)) }
         step("file opened") { limits["tree_row_click_opens_file"] = studio.openPath == "README.md"; studio.openFile("README.md"); click(studio.tabs,NSPoint(x:studio.tabs.bounds.width * 0.75,y:studio.tabs.bounds.midY)) }
         step("review tab") { result["click_switches_to_review_tab"] = !studio.reviewArea.isHidden && window.firstResponder === studio.stepsTable; click(studio.input) }
         step("type while steps arrive") { key(18,"1"); key(19,"2") }
@@ -475,7 +474,6 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
         edit.addItem(withTitle:"전체 선택",action:#selector(NSText.selectAll(_:)),keyEquivalent:"a")
         edit.addItem(.separator())
         let format = edit.addItem(withTitle:"코드 정리",action:#selector(StudioWindowController.formatDocument(_:)),keyEquivalent:"l"); format.keyEquivalentModifierMask = [.command,.option]
-        let terminal = edit.addItem(withTitle:"터미널",action:#selector(StudioWindowController.showTerminal(_:)),keyEquivalent:"`"); terminal.keyEquivalentModifierMask = [.control]
         let findItem = NSMenuItem(); menu.addItem(findItem)
         let find = NSMenu(title:"찾기"); findItem.submenu = find
         find.addItem(withTitle:"찾기…",action:#selector(NSTextView.marginShowFind(_:)),keyEquivalent:"f")
@@ -494,6 +492,8 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
         let viewItem = NSMenuItem(); menu.addItem(viewItem)
         let view = NSMenu(title:"보기"); viewItem.submenu = view
         view.addItem(withTitle:"사이드바 표시/숨기기  (⌘K ⌘B)",action:#selector(StudioWindowController.toggleSidebar(_:)),keyEquivalent:"")
+        let claude = view.addItem(withTitle:"Claude 패널 표시/숨기기",action:#selector(StudioWindowController.toggleClaude(_:)),keyEquivalent:"b"); claude.keyEquivalentModifierMask = [.command,.option]
+        let terminal = view.addItem(withTitle:"터미널 표시/숨기기",action:#selector(StudioWindowController.showTerminal(_:)),keyEquivalent:"`"); terminal.keyEquivalentModifierMask = [.control]
         NSApp.mainMenu = menu
     }
 
@@ -567,9 +567,9 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Implements: FR-IDE-1, FR-IDE-2, FR-IDE-3, FR-IDE-4, FR-IDE-5, FR-IDE-6, FR-IDE-10, FR-IDE-11, NFR-IDE-1
+    /// Implements: FR-IDE-1, FR-IDE-2, FR-IDE-3, FR-IDE-4, FR-IDE-5, FR-IDE-6, FR-IDE-10, FR-IDE-11, FR-IDE-12, NFR-IDE-1
     func runStudioChecks(root: URL) {
-        let names = ["launch_words_that_are_not_files_raise_no_alert","folder_path_opens_one_workspace","workspace_tree_hides_ignored_and_secret","code_view_opens_and_saves","markdown_opens_in_rendered_pane","agent_steps_replayed_in_order","accept_advances_reject_restores","conflicting_reject_refuses","terminal_runs_command","agent_launch_is_explicit","reload_keeps_tab_and_focus","step_selection_follows_file","tab_in_empty_input_accepts","same_step_redraw_keeps_reading_position","part_reject_undoes_one_block","format_command_is_one_undoable_saved_edit","terminal_tab_starts_shell_beside_log","new_session_shows_itself","terminal_keys_reach_the_program","terminal_stop_ends_the_shell","find_menu_opens_find_bar","find_in_files_options_and_reveal","sidebar_toggles_with_cmd_k_b"]
+        let names = ["launch_words_that_are_not_files_raise_no_alert","folder_path_opens_one_workspace","workspace_tree_hides_ignored_and_secret","code_view_opens_and_saves","markdown_opens_in_rendered_pane","agent_steps_replayed_in_order","accept_advances_reject_restores","conflicting_reject_refuses","claude_panel_toggles_with_opt_cmd_b","agent_launch_is_explicit","reload_keeps_tab_and_focus","step_selection_follows_file","tab_in_empty_input_accepts","same_step_redraw_keeps_reading_position","part_reject_undoes_one_block","format_command_is_one_undoable_saved_edit","terminal_panel_toggles_with_ctrl_backtick","new_session_shows_itself","terminal_keys_reach_the_program","terminal_stop_ends_the_shell","find_menu_opens_find_bar","find_in_files_options_and_reveal","sidebar_toggles_with_cmd_k_b","claude_log_reads_as_conversation"]
         for name in names { regression[name] = false }
         do {
             let space = root.appendingPathComponent("studio")
@@ -679,11 +679,16 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
             studio.flushSave()
             // A plain shell, so the check does not depend on the person's own shell configuration.
             studio.terminal.start(executable:"/bin/sh",arguments:["sh"])
+            studio.setClaude(hidden:false)
             studio.showTerminal(nil)
-            regression["terminal_tab_starts_shell_beside_log"] = studio.lowerTabs.selectedSegment == 1 && !studio.terminal.isHidden && studio.terminal.isRunning && studio.log.enclosingScrollView?.isHidden == true
+            let terminalOpened = !studio.terminal.isHidden && studio.terminal.isRunning && studio.window?.firstResponder === studio.terminal && !studio.claudeHidden
+            studio.showTerminal(nil)
+            let terminalClosed = studio.terminal.isHidden && studio.terminal.isRunning && studio.window?.firstResponder !== studio.terminal
+            studio.setClaude(hidden:true)
             studio.newSession()
-            regression["new_session_shows_itself"] = studio.lowerTabs.selectedSegment == 0 && studio.terminal.isHidden && studio.terminal.isRunning && studio.logText.contains("새 세션") && studio.recorder.steps.isEmpty && studio.recorder.sessionID == nil
+            regression["new_session_shows_itself"] = !studio.claudeHidden && studio.terminal.isRunning && studio.logText.contains("새 세션") && studio.recorder.steps.isEmpty && studio.recorder.sessionID == nil
             studio.showTerminal(nil)
+            regression["terminal_panel_toggles_with_ctrl_backtick"] = terminalOpened && terminalClosed && !studio.terminal.isHidden && studio.window?.firstResponder === studio.terminal
             func settle(_ seconds: TimeInterval, until done: () -> Bool = { false }) { let end = Date().addingTimeInterval(seconds); while Date() < end, !done() { RunLoop.current.run(until:Date().addingTimeInterval(0.05)) } }
             func press(_ code: UInt16, _ characters: String, _ plain: String, _ flags: NSEvent.ModifierFlags = []) {
                 if let event = NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:flags,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:studio.window?.windowNumber ?? 0,context:nil,characters:characters,charactersIgnoringModifiers:plain,isARepeat:false,keyCode:code) { studio.terminal.keyDown(with:event) }
@@ -701,7 +706,7 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
             settle(3) { studio.terminal.screen.screenText.contains("\ndone-130 한") }
             regression["terminal_keys_reach_the_program"] = composing && !studio.terminal.hasMarkedText() && studio.terminal.screen.screenText.contains("\ndone-130 한")
             if regression["terminal_keys_reach_the_program"] != true { fputs("Terminal keys: \(studio.terminal.screen.screenText.debugDescription)\n",stderr) }
-            studio.lowerTabs.selectedSegment = 0; studio.changedLowerTab(); studio.terminal.stop()
+            studio.setTerminal(hidden:true); studio.terminal.stop()
             settle(3) { kill(shellPid,0) != 0 }
             regression["terminal_stop_ends_the_shell"] = shellPid > 0 && kill(shellPid,0) != 0 && !studio.terminal.isRunning
             if regression["part_reject_undoes_one_block"] != true { fputs("Part: offered=\(offered) moved=\(moved) partly=\(partly) counter=\(studio.counter.stringValue) diff=\(studio.diffText.string.debugDescription)\n",stderr) }
@@ -741,12 +746,26 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
             try Data("let x = 1 // one\n".utf8).write(to:space.appendingPathComponent("sub/tool.swift"))
             let launch = AgentLauncher.arguments(prompt:"고쳐 줘",resume:"sid",allowShell:false)
             regression["agent_launch_is_explicit"] = launch.contains("stream-json") && launch.contains("acceptEdits") && launch.contains("sid") && !launch.contains { $0.contains("Bash") || $0.contains("dangerously") } && AgentLauncher.arguments(prompt:"x",resume:nil,allowShell:true).contains { $0.contains("Bash") }
-            let started = studio.runShell("printf 'margin-%s\\n' ok; cd sub; false") { [weak self, weak studio] code in
-                guard let self, let studio else { return }
-                self.regression["terminal_runs_command"] = code == 1 && studio.logText.contains("margin-ok") && studio.logText.contains("종료 코드 1") && studio.shell.directory.lastPathComponent == "sub" && !studio.logText.contains("__margin_cwd_")
-                if self.regression["terminal_runs_command"] != true { fputs("Terminal: code=\(code) dir=\(studio.shell.directory.path) log=\(studio.logText.suffix(200).debugDescription)\n",stderr) }
-            }
-            if !started { fputs("Terminal: did not start\n",stderr) }
+            let menuKeys = NSApp.mainMenu?.items.compactMap(\.submenu).flatMap(\.items) ?? []
+            let claudeKey = menuKeys.contains { $0.keyEquivalent == "b" && $0.keyEquivalentModifierMask == [.command,.option] && $0.action == #selector(StudioWindowController.toggleClaude(_:)) }
+            let terminalKey = menuKeys.contains { $0.keyEquivalent == "`" && $0.keyEquivalentModifierMask == [.control] && $0.action == #selector(StudioWindowController.showTerminal(_:)) }
+            studio.setClaude(hidden:false); studio.window?.makeFirstResponder(studio.input)
+            studio.toggleClaude(nil)
+            let claudeClosed = studio.claudeHidden && UserDefaults.standard.bool(forKey:"studio.claudeHidden") && !((studio.window?.firstResponder as? NSView)?.isDescendant(of:studio.claudePanel) ?? false)
+            studio.toggleClaude(nil)
+            let claudeOpened = !studio.claudeHidden && (studio.window?.firstResponder as? NSTextView)?.delegate === studio.input && studio.claudePanel.frame.width > 100
+            regression["claude_panel_toggles_with_opt_cmd_b"] = claudeKey && terminalKey && claudeClosed && claudeOpened
+            if regression["claude_panel_toggles_with_opt_cmd_b"] != true { fputs("Claude panel: keys=\(claudeKey)/\(terminalKey) closed=\(claudeClosed) opened=\(claudeOpened) width=\(studio.claudePanel.frame.width)\n",stderr) }
+            UserDefaults.standard.removeObject(forKey:"studio.claudeHidden")
+            let rendered = LogMarkdown.render("## 제목\n- **굵게** 와 `code`\n```\nlet a = 1\n```",size:13)
+            func font(at text: String) -> NSFont? { let at = (rendered.string as NSString).range(of:text).location; return at == NSNotFound ? nil : rendered.attribute(.font,at:at,effectiveRange:nil) as? NSFont }
+            let markdownOK = rendered.string == "제목\n•  굵게 와 code\nlet a = 1" && font(at:"제목")?.pointSize == 14 && font(at:"굵게")?.fontDescriptor.symbolicTraits.contains(.bold) == true
+                && font(at:"code")?.isFixedPitch == true && font(at:"let a")?.isFixedPitch == true
+            studio.newSession(); studio.setClaude(hidden:false)
+            studio.ingest(#"{"type":"assistant","message":{"content":[{"type":"text","text":"첫 줄 `x`"}]}}"#)
+            let conversation = studio.logText.contains("Claude\n첫 줄 x")
+            regression["claude_log_reads_as_conversation"] = markdownOK && conversation
+            if regression["claude_log_reads_as_conversation"] != true { fputs("Log: markdown=\(markdownOK) \(rendered.string.debugDescription) log=\(studio.logText.suffix(120).debugDescription)\n",stderr) }
         } catch { fputs("Workspace check: \(error.localizedDescription)\n",stderr) }
     }
 
@@ -852,7 +871,7 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
                         document.source = current; try document.flush(); controller.refreshSources()
                     }
                 } catch { historyOK = false; restoreOK = false }
-                let pass = error == nil && value["heading"] as? String == "Native check" && value["table"] as? Bool == true && value["tasks"] as? Bool == true && value["code"] as? Bool == true && value["safe"] as? Bool == true && controller.panes.count == 2 && sourceMode && previewMode && independent && tabApplied && canUndo && undoWorked && autosave && originalSaved && layout && historyOK && restoreOK && self.regression.count == 41 && self.regression.values.allSatisfy { $0 }
+                let pass = error == nil && value["heading"] as? String == "Native check" && value["table"] as? Bool == true && value["tasks"] as? Bool == true && value["code"] as? Bool == true && value["safe"] as? Bool == true && controller.panes.count == 2 && sourceMode && previewMode && independent && tabApplied && canUndo && undoWorked && autosave && originalSaved && layout && historyOK && restoreOK && self.regression.count == 42 && self.regression.values.allSatisfy { $0 }
                 let receipt: [String:Any] = ["pass":pass,"native_editor_class":String(describing:type(of:controller.panes[0].editor)),"split_panels":controller.panes.count,"source_mode":sourceMode,"preview_mode":previewMode,"independent_panes":independent,"native_tab_apply":tabApplied,"native_undo":undoWorked,"durable_autosave":autosave,"original_file_autosave":originalSaved,"history_panel":historyOK,"native_restore":restoreOK,"layout":layout,"pane_frames":controller.panes.map { NSStringFromRect($0.frame) },"save_status":controller.status.stringValue,"preview":value,"regressions":self.regression,"bundle":Bundle.main.bundleURL.path,"localhost_server_required":false]
                 func finish() {
                     print(String(data:try! JSONSerialization.data(withJSONObject:receipt,options:[.prettyPrinted,.sortedKeys]),encoding:.utf8)!)
