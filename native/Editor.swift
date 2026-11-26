@@ -42,6 +42,8 @@ final class MarginPane: NSView, WKNavigationDelegate {
     var onKindChanged: (() -> Void)?
     var onPreviewError: ((String) -> Void)?
     var onPreviewEdit: ((NSRange, String, String) -> Bool)? { didSet { updateFormatBar() } }
+    /// Shows the preview as the file's own text, read-only, for files that are not Markdown.
+    var plainText = false { didSet { if plainText != oldValue { updateFormatBar(); if selector.selectedSegment == 1 { render(text,force:true) } } } }
     private var editSequence = 0
     let formatBar = NSStackView()
     let blockPopup = NSPopUpButton()
@@ -116,7 +118,7 @@ final class MarginPane: NSView, WKNavigationDelegate {
     @objc func changedKind() { setKind(selector.selectedSegment); onKindChanged?() }
     func setKind(_ value: Int) { selector.selectedSegment = value; sourceScroll.isHidden = value != 0; preview.isHidden = value != 1; updateFormatBar(); if value == 1 { render(text) } }
     func updateFormatBar() {
-        formatBar.isHidden = !(selector.selectedSegment == 1 && onPreviewEdit != nil)
+        formatBar.isHidden = !(selector.selectedSegment == 1 && onPreviewEdit != nil && !plainText)
         kindLabel.isHidden = !formatBar.isHidden
     }
     func format(_ command: String) {
@@ -136,7 +138,7 @@ final class MarginPane: NSView, WKNavigationDelegate {
     }
     func render(_ source: String, force: Bool = false) {
         text = source
-        guard loaded, let data = try? JSONSerialization.data(withJSONObject:[source,onPreviewEdit != nil,editSequence,force] as [Any]), let json = String(data:data,encoding:.utf8) else { return }
+        guard loaded, let data = try? JSONSerialization.data(withJSONObject:[source,onPreviewEdit != nil && !plainText,editSequence,force,plainText] as [Any]), let json = String(data:data,encoding:.utf8) else { return }
         preview.evaluateJavaScript("window.marginRender(...\(json))") { [weak self] _, error in
             guard let error else { return }
             let detail = (error as NSError).userInfo["WKJavaScriptExceptionMessage"] as? String ?? error.localizedDescription
@@ -316,7 +318,7 @@ final class MarginWindowController: NSWindowController, NSTextViewDelegate {
     }
     func renderPreview(debounce: Bool = false) {
         pendingRender?.cancel()
-        for pane in panes { pane.text = marginDocument.source }
+        for pane in panes { pane.text = marginDocument.source; pane.plainText = marginDocument.isPlainText }
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             for pane in self.panes where !pane.isHidden && pane.selector.selectedSegment == 1 { pane.render(self.marginDocument.source) }

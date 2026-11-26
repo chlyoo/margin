@@ -451,11 +451,20 @@ window.marginFormat = command => {
   else return false;
   sync(); reportState(); return true;
 };
-window.marginRender = (text, canEdit, ack, force) => {
+let plainShown = false;
+window.marginRender = (text, canEdit, ack, force, plain) => {
+  if (plain) {
+    // Not Markdown: show the file's own text as it is, read-only.
+    editable = false; source = text; plainShown = true; painted = false; mapped = false;
+    const root = article(), pre = document.createElement('pre'), code = document.createElement('code');
+    pre.className = 'plain'; code.textContent = text; pre.append(code);
+    root.contentEditable = 'false'; root.classList.remove('editable'); root.replaceChildren(pre);
+    observer.takeRecords(); return;
+  }
   const was = editable; editable = !!canEdit;
   // A render older than the latest posted edit would clobber what is being typed.
-  if (!force && ((ack || 0) < seq || (painted && text === source && was === editable))) return;
-  source = text; paint();
+  if (!force && !plainShown && ((ack || 0) < seq || (painted && text === source && was === editable))) return;
+  plainShown = false; source = text; paint();
 };
 window.marginRoundTrip = text => {
   const tokens = marked.lexer(text), blocks = tokens.filter(token => token.type !== 'space');

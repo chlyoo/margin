@@ -213,13 +213,14 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
               let data = try? Data(contentsOf:URL(fileURLWithPath:CommandLine.arguments[index + 1])), let decoded = try? DocumentFormat.decode(data) else { fputs("Preview check: cannot read the file\n",stderr); exit(1) }
         DispatchQueue.global().asyncAfter(deadline:.now() + 30) { fputs("Preview check timed out\n",stderr); exit(1) }
         controller.auto.state = .off
+        document.record.name = URL(fileURLWithPath:CommandLine.arguments[index + 1]).lastPathComponent
         document.source = decoded.text; controller.refreshSources(); controller.setMode(2)
         DispatchQueue.main.asyncAfter(deadline:.now() + 3) {
-            controller.panes[1].preview.evaluateJavaScript("(()=>{const root=document.querySelector('#document');return {blocks:root.querySelectorAll('section.block').length,locked:root.querySelectorAll('section.locked').length,characters:root.textContent.length,lineBreaks:root.querySelectorAll('br').length,tags:root.querySelectorAll('.tag').length,editable:root.contentEditable,lockedText:[...root.querySelectorAll('section.locked')].map(node=>node.textContent.slice(0,60))}})()") { result,error in
+            controller.panes[1].preview.evaluateJavaScript("(()=>{const root=document.querySelector('#document');return {plain:!!root.querySelector('pre.plain'),blocks:root.querySelectorAll('section.block').length,locked:root.querySelectorAll('section.locked').length,characters:root.textContent.length,lineBreaks:root.querySelectorAll('br').length,tags:root.querySelectorAll('.tag').length,editable:root.contentEditable,lockedText:[...root.querySelectorAll('section.locked')].map(node=>node.textContent.slice(0,60))}})()") { result,error in
                 var receipt = result as? [String:Any] ?? [:]
                 if let error { receipt["error"] = (error as NSError).userInfo["WKJavaScriptExceptionMessage"] as? String ?? error.localizedDescription }
                 receipt["status"] = controller.status.stringValue; receipt["source_characters"] = decoded.text.count
-                receipt["pass"] = error == nil && (receipt["blocks"] as? Int ?? 0) > 0
+                receipt["pass"] = error == nil && ((receipt["blocks"] as? Int ?? 0) > 0 || receipt["plain"] as? Bool == true)
                 print(String(data:try! JSONSerialization.data(withJSONObject:receipt,options:[.prettyPrinted,.sortedKeys]),encoding:.utf8)!)
                 if let root = self.checkRoot { try? FileManager.default.removeItem(at:root) }
                 exit(receipt["pass"] as? Bool == true ? 0 : 1)
@@ -853,10 +854,15 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
             self.checkStage = "preview verification"
             if document.source != expected { fputs("Preview edit source: \(document.source.suffix(80))\n",stderr) }
             self.regression["preview_edit_updates_source"] = opened as? Bool == true && expected != beforeEdit && document.source == expected && controller.panes[0].editor.string == expected
-            controller.panes[1].preview.evaluateJavaScript("({heading:document.querySelector('h1,h2')?.textContent,table:!!document.querySelector('td'),tasks:!!document.querySelector('input[type=checkbox]'),code:!!document.querySelector('.token.keyword'),safe:!window.bad,edited:document.querySelector('#document').textContent.includes('미리보기에서 고쳤습니다.')&&!document.querySelector('input:checked')&&document.querySelectorAll('section.block').length>3,paste:window.marginConvertHTML(..."+pasteFixture+"),codePaste:window.marginConvertHTML(..."+codeFixture+")===null,tags:(()=>{const box=document.createElement('div');box.append(clean(marked.parse('글 #태그 #a/b #123 a#b https://x.com/#no `#code` \\\\#esc')));return [...box.querySelectorAll('.tag')].map(node=>node.textContent).join(',')})(),chip:!!document.querySelector('#document .tag'),lineBreak:!!document.querySelector('#document p br'),roundtrip:window.marginRoundTrip("+roundTripFixture+")})") { result,error in
+            let plainCheck = #"(()=>{const s=source,e=editable,t='{\n  "key": "<b>값</b>"\n}\n# not a heading';window.marginRender(t,true,0,true,true);const p=document.querySelector('#document pre.plain');const ok=!!p&&p.textContent===t&&!document.querySelector('#document h1')&&document.querySelector('#document').contentEditable==='false';window.marginRender(s,e,0,true,false);return ok&&!document.querySelector('#document pre.plain')})()"#
+            controller.panes[1].preview.evaluateJavaScript("({heading:document.querySelector('h1,h2')?.textContent,table:!!document.querySelector('td'),tasks:!!document.querySelector('input[type=checkbox]'),code:!!document.querySelector('.token.keyword'),safe:!window.bad,edited:document.querySelector('#document').textContent.includes('미리보기에서 고쳤습니다.')&&!document.querySelector('input:checked')&&document.querySelectorAll('section.block').length>3,paste:window.marginConvertHTML(..."+pasteFixture+"),codePaste:window.marginConvertHTML(..."+codeFixture+")===null,tags:(()=>{const box=document.createElement('div');box.append(clean(marked.parse('글 #태그 #a/b #123 a#b https://x.com/#no `#code` \\\\#esc')));return [...box.querySelectorAll('.tag')].map(node=>node.textContent).join(',')})(),chip:!!document.querySelector('#document .tag'),lineBreak:!!document.querySelector('#document p br'),roundtrip:window.marginRoundTrip("+roundTripFixture+"),plain:"+plainCheck+"})") { result,error in
                 self.checkStage = "autosave, history and restore"
                 let value = result as? [String:Any] ?? [:]
                 self.regression["preview_edit_rerenders"] = value["edited"] as? Bool == true
+                let jsonDocument = MarginDocument(), mdDocument = MarginDocument()
+                jsonDocument.record.name = "settings.json"; mdDocument.record.name = "노트.md"
+                self.regression["non_markdown_preview_shows_text_as_is"] = value["plain"] as? Bool == true && jsonDocument.isPlainText && !mdDocument.isPlainText
+                if self.regression["non_markdown_preview_shows_text_as_is"] != true { fputs("Plain preview: js=\(value["plain"] ?? "nil") json=\(jsonDocument.isPlainText) md=\(mdDocument.isPlainText)\n",stderr) }
                 self.regression["rich_paste_converts_to_markdown"] = value["paste"] as? String == pasteExpected && value["codePaste"] as? Bool == true
                 if self.regression["rich_paste_converts_to_markdown"] != true { fputs("Rich paste: \(value["paste"] ?? "nil") code=\(value["codePaste"] ?? "nil")\n",stderr) }
                 self.regression["tags_render_as_chips"] = value["tags"] as? String == "#태그,#a/b" && value["chip"] as? Bool == true
@@ -886,7 +892,7 @@ final class MarginAppDelegate: NSObject, NSApplicationDelegate {
                         document.source = current; try document.flush(); controller.refreshSources()
                     }
                 } catch { historyOK = false; restoreOK = false }
-                let pass = error == nil && value["heading"] as? String == "Native check" && value["table"] as? Bool == true && value["tasks"] as? Bool == true && value["code"] as? Bool == true && value["safe"] as? Bool == true && controller.panes.count == 2 && sourceMode && previewMode && independent && tabApplied && canUndo && undoWorked && autosave && originalSaved && layout && historyOK && restoreOK && self.regression.count == 45 && self.regression.values.allSatisfy { $0 }
+                let pass = error == nil && value["heading"] as? String == "Native check" && value["table"] as? Bool == true && value["tasks"] as? Bool == true && value["code"] as? Bool == true && value["safe"] as? Bool == true && controller.panes.count == 2 && sourceMode && previewMode && independent && tabApplied && canUndo && undoWorked && autosave && originalSaved && layout && historyOK && restoreOK && self.regression.count == 46 && self.regression.values.allSatisfy { $0 }
                 let receipt: [String:Any] = ["pass":pass,"native_editor_class":String(describing:type(of:controller.panes[0].editor)),"split_panels":controller.panes.count,"source_mode":sourceMode,"preview_mode":previewMode,"independent_panes":independent,"native_tab_apply":tabApplied,"native_undo":undoWorked,"durable_autosave":autosave,"original_file_autosave":originalSaved,"history_panel":historyOK,"native_restore":restoreOK,"layout":layout,"pane_frames":controller.panes.map { NSStringFromRect($0.frame) },"save_status":controller.status.stringValue,"preview":value,"regressions":self.regression,"bundle":Bundle.main.bundleURL.path,"localhost_server_required":false]
                 func finish() {
                     print(String(data:try! JSONSerialization.data(withJSONObject:receipt,options:[.prettyPrinted,.sortedKeys]),encoding:.utf8)!)
@@ -925,6 +931,9 @@ final class MarginDocument: NSDocument {
     let store: VersionStore
     var record: DocumentRecord
     var controller: MarginWindowController? { windowControllers.first as? MarginWindowController }
+    static let markdownExtensions: Set<String> = ["md","markdown","mdown","mkd","mkdn","mdx",""]
+    /// Files that are not Markdown (JSON, YAML, code, text) preview as their own text instead of being parsed as Markdown.
+    var isPlainText: Bool { !Self.markdownExtensions.contains((fileURL?.pathExtension ?? (record.name as NSString).pathExtension).lowercased()) }
     private let saveQueue = DispatchQueue(label:"com.peterlyoo.Margin.autosave")
     private var pendingSave: DispatchWorkItem?
     private var closed = false

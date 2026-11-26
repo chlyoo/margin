@@ -22,6 +22,7 @@ Canonical acceptance: [requirements.json](requirements.json). Qualification is i
 | FR-MD-6 | P0 | Native macOS .app with source/rendered/split view, native file editing and AI settings |
 | FR-MD-7 | P0 | Debounced durable draft autosave and original-file autosave when saved, truthful errors, conflict detection |
 | FR-MD-8 | P0 | Immutable timestamped versions with preview, restore-as-new-version and reopening recovery |
+| FR-MD-9 | P1 | A file that is not Markdown (by extension, e.g. .json, .yaml, .txt, code) previews in the preview and split modes as its own text, read-only and unparsed, so every value stays visible; Markdown files keep the rendered, editable preview |
 | FR-IDE-1 | P0 | Folder workspace window with file tree; ignored build folders and secret-like files hidden; Markdown opens in the source/rendered pane; other text files open in a code view with line numbers and syntax colouring; edits autosave with external-change guard |
 | FR-IDE-2 | P0 | Agent run recorded as ordered steps; a step = reasoning text since the previous step + tools run + per-file before/after; changes made by shell commands are captured; parallel tool calls form one step; secret-like, ignored, oversized and non-UTF-8 files are never snapshotted |
 | FR-IDE-3 | P0 | Step review: ordered timeline, reason and line diff per step, previous/next, accept marks and advances, reject restores the previous text only when the step's result is still present (whole file, or every changed hunk found exactly once); otherwise refuses and writes nothing |
