@@ -269,6 +269,7 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         let column = NSTableColumn(identifier:NSUserInterfaceItemIdentifier("name")); column.resizingMask = .autoresizingMask
         outline.addTableColumn(column); outline.outlineTableColumn = column; outline.headerView = nil; outline.rowHeight = 22
         outline.dataSource = self; outline.delegate = self; outline.style = .sourceList
+        outline.target = self; outline.doubleAction = #selector(toggleFolder(_:))
         let side = scrolling(outline)
         main.addSubview(side); sidebar = side
         let right = centerSplit; right.isVertical = false; right.dividerStyle = .thin
@@ -524,6 +525,11 @@ final class StudioWindowController: NSWindowController, NSWindowDelegate, NSOutl
         outline.reloadData()
         func restore(_ list: [StudioNode]) { for node in list where expanded.contains(node.path) { outline.expandItem(node); restore(node.children) } }
         restore(nodes)
+    }
+    @objc func toggleFolder(_ sender: Any?) {
+        let row = outline.clickedRow >= 0 ? outline.clickedRow : outline.selectedRow
+        guard let node = outline.item(atRow:row) as? StudioNode, node.isDirectory else { return }
+        if outline.isItemExpanded(node) { outline.collapseItem(node) } else { outline.expandItem(node) }
     }
     func outlineView(_ outlineView: NSOutlineView, numberOfChildrenOfItem item: Any?) -> Int { ((item as? StudioNode)?.children ?? nodes).count }
     func outlineView(_ outlineView: NSOutlineView, child index: Int, ofItem item: Any?) -> Any { ((item as? StudioNode)?.children ?? nodes)[index] }
